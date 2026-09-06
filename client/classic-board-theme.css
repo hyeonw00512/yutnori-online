@@ -25,8 +25,44 @@ body{background:radial-gradient(circle at 50% 0,#fff8e7 0 18%,#e9d2a4 72%,#b9835
 .rematch-actions{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:13px}.rematch-actions button{padding:9px 12px;background:#8d3b25!important;border:2px solid #ffe69c;box-shadow:0 3px #5c2518!important}.rematch-actions button:disabled{opacity:1;background:#557352!important;border-color:#dcf3bb;box-shadow:0 3px #355035!important}.rematch-actions b{padding:7px 9px;border-radius:8px;background:#fff4ca;color:#7c3922;font-size:12px}.rematch-actions .new-room{background:#5d4435!important;border-color:#f4d8a1!important;box-shadow:0 3px #3b291f!important}
 .lobby-play>div:first-child{display:flex!important;align-items:center;justify-content:center;min-height:690px!important}.lobby-play .board{margin:auto!important}.lobby-overlay{position:absolute;z-index:15;left:50%;top:50%;width:min(78%,390px);padding:23px 22px;transform:translate(-50%,-50%);text-align:center;border:4px solid #7d4929;border-radius:16px;background:linear-gradient(145deg,#fff9df,#e7bf79);box-shadow:0 10px 26px #4d281b99,inset 0 0 0 3px #fff2bc;color:#643923;animation:lobbyPop .5s cubic-bezier(.16,1.2,.4,1) both}.lobby-overlay span{display:block;font-weight:900;letter-spacing:2px;color:#a74d2d}.lobby-overlay strong{display:block;margin:5px 0;font-family:Jua,sans-serif;font-size:28px}.lobby-overlay p{margin:8px 0 15px;font-size:13px}.lobby-overlay button{min-width:160px;background:linear-gradient(#e87542,#ae3925)!important;border:2px solid #ffdea1;box-shadow:0 4px #722516!important}.lobby-overlay small{display:block;padding:8px;border-radius:7px;background:#fff3d5;color:#7e583d;font-weight:800}@keyframes lobbyPop{from{opacity:0;transform:translate(-50%,-50%) scale(.72)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 .lobby-buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.lobby-overlay .team-shuffle{background:linear-gradient(#4b9f9c,#1d6868)!important;box-shadow:0 4px #164949!important}.lobby-overlay .lobby-buttons+small{margin-top:11px;font-size:10px}
+.team-picker{margin:0 0 14px;padding:9px;border:1px solid #bd8c55;border-radius:10px;background:#fff2d0}.team-picker>b{display:block;margin-bottom:7px;font-size:12px;color:#754326}.team-options{display:grid;grid-template-columns:1fr 1fr;gap:7px}.lobby-overlay .team-option{display:flex;min-width:0!important;min-height:65px;padding:7px!important;flex-direction:column;align-items:stretch;border:2px solid #aa7143!important;border-radius:8px!important;background:#f4b048!important;box-shadow:0 2px #9b612b!important;text-align:left}.lobby-overlay .team-option.t1{background:#4d8fc3!important;border-color:#b8e4ff!important;box-shadow:0 2px #286390!important}.lobby-overlay .team-option.chosen{outline:3px solid #fff8bd;filter:brightness(1.12)}.team-option strong{font-size:13px!important;color:#fff!important}.team-option strong small{display:inline!important;padding:0!important;background:transparent!important;color:#fff7d2!important;font-size:10px!important}.team-option span{display:block;overflow:hidden;margin-top:4px;color:#fff!important;font-size:10px!important;font-weight:700;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
 .roll{background:linear-gradient(#e67443,#ad3926)!important;border:2px solid #ffdda0!important;box-shadow:0 4px #702417!important}.roll:not(:disabled):hover{filter:brightness(1.1)!important}
 aside{background:linear-gradient(#fff9e9,#e4c999)!important;border:3px solid #7a4a2d!important;border-radius:10px!important;box-shadow:inset 0 0 0 2px #ffe9ba!important}aside h3{color:#5f3722!important;border-bottom-color:#c79c63!important}.messages p{background:#fffdf4!important;border-color:#dfc79e!important}.messages p b{color:#a5482f!important}
 .piece{border-color:#fff8d7!important;box-shadow:0 3px 5px #38201288!important}.piece.selectable{box-shadow:0 0 0 5px #ffe06e,0 0 18px #f5a61c!important}
 @media(max-width:900px){.play{grid-template-columns:minmax(0,1fr) 230px!important}.play>div:first-child{grid-template-columns:minmax(290px,1fr) 220px!important}.three-roll .throw-zone{height:184px!important}}
 @media(max-width:760px){.game{border-width:4px!important;border-radius:0!important}.play>div:first-child{display:block!important}.play>div:first-child>.board{width:100%!important;border-width:8px!important}.lobby-play>div:first-child{min-height:auto!important}.lobby-overlay{padding:16px;width:84%}.lobby-overlay strong{font-size:24px}.three-roll .throw-zone{height:174px!important}.cell{width:30px!important;height:30px!important}.cell.corner{width:39px!important;height:39px!important}}
+
+/* 휴대폰에서는 윷판을 먼저, 조작부와 채팅은 세로로 이어서 보여 준다. */
+@media(max-width:760px){
+  body{overflow-x:hidden}
+  .game{width:100%;min-height:100vh;margin:0;padding:8px!important}
+  .game>header{gap:7px!important;padding:8px!important}
+  .game>header h1{width:100%;font-size:28px!important}
+  .game>header strong{font-size:12px}
+  .game>header .leave-room{margin-left:auto;font-size:12px}
+  .players{margin:0 -2px;padding:7px 2px!important}
+  .players div{padding:7px 9px!important;font-size:12px}
+  .play{gap:9px!important;padding:7px!important}
+  .play>div:first-child{display:flex!important;flex-direction:column;min-width:0;padding:7px!important}
+  .play>div:first-child>.turn{order:0;align-self:stretch;margin:0 0 8px!important;font-size:17px!important;text-align:center}
+  .play>div:first-child>.board{order:1;width:min(100%,560px)!important;margin:0 auto 9px!important}
+  .play>div:first-child>.sticks{order:2;width:100%;height:205px!important;margin:0 auto!important}
+  .play>div:first-child>.piece-status{order:3;width:100%;margin:0 0 8px!important}
+  .play>div:first-child>.roll{order:4;width:min(94%,340px);margin:3px auto 8px!important;min-height:45px;font-size:17px}
+  .play>div:first-child>.rolling-note,.play>div:first-child>p:not(.turn):not(.rolling-note){order:5;margin:3px 5px 7px!important;transform:none!important}
+  .three-roll .throw-zone{height:178px!important;width:min(100%,300px)!important;margin:auto}
+  .three-roll .result-pop{font-size:46px!important}
+  aside{min-height:225px!important;max-height:310px;padding:10px!important}
+  .messages{min-height:135px}
+  aside form input{min-height:42px;font-size:16px}
+  aside form button{min-width:58px;min-height:42px}
+  .lobby-play>div:first-child{display:flex!important;min-height:calc(100vh - 165px)!important;justify-content:center;padding:7px!important}
+  .lobby-play>div:first-child>.board{width:100%!important;margin:auto!important}
+  .lobby-overlay{width:min(91%,390px);max-height:88%;overflow:auto;padding:15px 13px}
+  .lobby-overlay p{margin:6px 0 10px}
+  .team-options{gap:5px}
+  .lobby-overlay .team-option{min-height:58px!important;padding:6px!important}
+  .landing{margin:20px 12px!important;padding:23px 18px!important}
+  .landing .actions,.landing .join{flex-wrap:wrap}
+  .landing .actions button,.landing .actions select,.landing .join input,.landing .join select,.landing .join button{width:100%}
+}
