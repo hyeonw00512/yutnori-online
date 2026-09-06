@@ -1,0 +1,6 @@
+import test from "node:test"; import assert from "node:assert/strict"; import { createPieces, move, type Room } from "./game";
+const room = (): Room => ({code:"TEST",hostId:"a",status:"playing",mode:"solo",players:[{id:"a",name:"A",team:0,connected:true,finished:0},{id:"b",name:"B",team:1,connected:true,finished:0}],pieces:[],turn:0,pending:[],extra:false});
+test("말을 이동하고 상대 말을 잡는다", () => { const r=room(); createPieces(r); r.pieces.find(p=>p.id==="b-0")!.pos=1; move(r,"a-0","DO"); assert.equal(r.pieces.find(p=>p.id==="b-0")!.pos,-1); });
+test("윷은 추가 턴을 준다", () => { const r=room(); createPieces(r); move(r,"a-0","YUT"); assert.equal(r.turn,0); });
+test("출발 빽도 뒤 개는 한 바퀴를 완주한다", () => { const r=room(); createPieces(r); move(r,"a-0","BACKDO"); assert.equal(r.pieces.find(p=>p.id==="a-0")!.pos,19); move(r,"b-0","DO"); move(r,"a-0","GAE"); assert.equal(r.pieces.find(p=>p.id==="a-0")!.finished,true); });
+test("모서리 지름길과 중앙 대각선은 규칙 경로를 따른다", () => { const r=room(); createPieces(r); const p=r.pieces.find(p=>p.id==="a-0")!; p.pos=10; move(r,"a-0","GEOL",true); assert.equal(p.pos,22); assert.equal(p.route,"b"); move(r,"b-0","DO"); move(r,"a-0","GAE"); assert.equal(p.pos,28); assert.equal(p.route,"b"); });

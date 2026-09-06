@@ -1,0 +1,5 @@
+/* Kept last so the game-board refinements override the compact base theme. */
+.piece{width:32px;height:32px;padding:1px!important;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;overflow:hidden}
+.piece span{font-size:9px;max-width:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.piece em{font-style:normal;font-size:9px;font-weight:900}
+.start{left:1.5%!important;top:auto!important;bottom:1.5%}.finish{left:1%!important;right:auto!important;bottom:8%}
+@media(max-width:760px){.piece{width:25px;height:25px}.piece span,.piece em{font-size:7px}}
