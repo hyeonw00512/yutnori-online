@@ -3,7 +3,7 @@ export type Piece = { id: string; owner: string; pos: number; finished: boolean;
 export type Player = { id: string; name: string; team: number; connected: boolean; finished: number; disconnectedAt?: number };
 export type Room = {
   code: string; hostId: string; status: "lobby" | "playing" | "finished"; mode: "solo" | "team"; practice?: boolean;
-  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; extra: boolean; winner?: number; rematchVotes?: string[];
+  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number }; extra: boolean; winner?: number; rematchVotes?: string[];
 };
 
 export const STEPS: Record<Result, number> = { DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5, BACKDO: -1, NAK: 0 };
@@ -22,7 +22,7 @@ export const roll = (): { result: Result; sticks: boolean[] } => {
 };
 export const current = (room: Room) => room.players[room.turn];
 export function createPieces(room: Room) { room.pieces = room.players.flatMap(p => Array.from({ length: 4 }, (_, n) => ({ id: `${p.id}-${n}`, owner: p.id, pos: -1, finished: false, stackedWith: [] }))); }
-export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.lastRoll = undefined; room.extra = false; room.winner = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
+export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.lastRoll = undefined; room.lastCapture = undefined; room.extra = false; room.winner = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
 // -1은 출발/완주 공용 칸이며 1~19는 외곽이다. 빽도 첫 이동은 19번 칸으로 간다.
 const forward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return 1;
@@ -60,6 +60,7 @@ export function move(room: Room, pieceId: string, result: Result, takeShortcut =
   if (to === 99) { group.forEach(x => { x.finished = true; x.pos = 99; x.stackedWith = []; x.route = undefined; }); player.finished += group.length; }
   else { group.forEach(x => { x.pos = to; x.route = nextRoute; }); const enemies = room.pieces.filter(x => x.pos === to && !x.finished && x.owner !== player.id && (room.mode === "solo" || room.players.find(a => a.id === x.owner)?.team !== player.team));
     const caught = enemies.length > 0; enemies.forEach(x => { x.pos = -1; x.stackedWith = []; x.route = undefined; });
+    if (caught) room.lastCapture = { by: player.id, count: enemies.length, at: Date.now() };
     const friends = room.pieces.filter(x => x.pos === to && x.owner === player.id && x.id !== p.id);
     // 같은 칸의 내 말은 어느 말을 눌러도 함께 움직이도록 양방향으로 연결한다.
     const stacked = [...new Map([...group, ...friends].map(x => [x.id, x])).values()];
