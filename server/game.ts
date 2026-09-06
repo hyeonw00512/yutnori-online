@@ -44,6 +44,12 @@ const travel = (pos: number, steps: number, route?: "a" | "b") => { let at = pos
 export function move(room: Room, pieceId: string, result: Result, takeShortcut = false) {
   const player = current(room); const p = room.pieces.find(x => x.id === pieceId);
   if (!p || p.owner !== player.id || p.finished) throw new Error("이동할 수 없는 말입니다.");
+  // 출발 대기 중인 말은 1번부터 순서대로 판에 올린다. 잡혀 돌아온 말도 번호가 낮으면 먼저 다시 출발한다.
+  if (p.pos === -1) {
+    const firstWaiting = room.pieces.filter(x => x.owner === player.id && x.pos === -1 && !x.finished)
+      .sort((a, b) => Number(a.id.slice(a.id.lastIndexOf("-") + 1)) - Number(b.id.slice(b.id.lastIndexOf("-") + 1)))[0];
+    if (firstWaiting?.id !== p.id) throw new Error("대기 말은 1번부터 순서대로 출발합니다.");
+  }
   const steps = STEPS[result]; if (!steps) throw new Error("낙은 말을 이동하지 않습니다.");
   if (takeShortcut && (steps < 1 || ![5, 10, 22].includes(p.pos))) throw new Error("이 위치에서는 지름길을 선택할 수 없습니다.");
   const group = [p, ...room.pieces.filter(x => p.stackedWith.includes(x.id))];
