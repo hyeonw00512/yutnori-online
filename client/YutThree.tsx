@@ -13,8 +13,9 @@ export function YutThree({ data }: { data?: Roll }) {
     camera.position.set(0, 5.2, 7.4); camera.lookAt(0, 0, 0);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(host.clientWidth, host.clientHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; host.appendChild(renderer.domElement);
     scene.add(new THREE.HemisphereLight(0xfff2cf, 0x42200c, 2.2)); const key = new THREE.DirectionalLight(0xffe8b0, 3.4); key.position.set(-3, 6, 4); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); scene.add(key);
-    // 테두리 없는 한 장의 윷판: 윷 동작만 또렷하게 보이게 한다.
-    const table = new THREE.Mesh(new THREE.CylinderGeometry(3.18, 3.18, .1, 64), new THREE.MeshStandardMaterial({ color: 0xe9b867, roughness: .78 })); table.receiveShadow = true; table.position.y = -.18; scene.add(table);
+    // 사각 배경 없이, 얇은 나무 테두리만 있는 둥근 윷 접시다.
+    const table = new THREE.Mesh(new THREE.CylinderGeometry(3.28, 3.28, .14, 64), new THREE.MeshStandardMaterial({ color: 0x70401f, roughness: .58 })); table.receiveShadow = true; table.position.y = -.22; scene.add(table);
+    const inner = new THREE.Mesh(new THREE.CylinderGeometry(3.05, 3.05, .04, 64), new THREE.MeshStandardMaterial({ color: 0xf2c979, roughness: .78 })); inner.receiveShadow = true; inner.position.y = -.13; scene.add(inner);
     // 큰 윷 네 개가 멈춘 뒤에도 서로 겹치지 않도록 접시 안 착지 간격을 넉넉히 둔다.
     const sticks: THREE.Group[] = [], end = [[-1.42,.78],[.42,.92],[-1.18,-.82],[1.32,-.76]];
     for (let i = 0; i < 4; i++) { const g = new THREE.Group();

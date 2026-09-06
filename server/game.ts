@@ -1,9 +1,10 @@
 export type Result = "DO" | "GAE" | "GEOL" | "YUT" | "MO" | "BACKDO" | "NAK";
 export type Piece = { id: string; owner: string; pos: number; finished: boolean; stackedWith: string[]; route?: "a" | "b" };
 export type Player = { id: string; name: string; team: number; connected: boolean; finished: number; disconnectedAt?: number };
+export type GameEvent = { id: number; kind: "roll" | "move" | "capture" | "finish" | "system"; text: string; team?: number; at: number };
 export type Room = {
   code: string; hostId: string; status: "lobby" | "playing" | "finished"; mode: "solo" | "team"; practice?: boolean;
-  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number }; extra: boolean; winner?: number; rematchVotes?: string[];
+  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; events?: GameEvent[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number }; extra: boolean; winner?: number; rematchVotes?: string[];
 };
 
 export const STEPS: Record<Result, number> = { DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5, BACKDO: -1, NAK: 0 };
