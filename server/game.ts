@@ -54,15 +54,18 @@ export function move(room: Room, pieceId: string, result: Result, takeShortcut =
     if (firstWaiting?.id !== p.id) throw new Error("대기 말은 1번부터 순서대로 출발합니다.");
   }
   const steps = STEPS[result]; if (!steps) throw new Error("낙은 말을 이동하지 않습니다.");
-  const group = [p, ...room.pieces.filter(x => p.stackedWith.includes(x.id))];
+  // 업기 그룹은 항상 대표 말 하나에 모든 말이 직접 연결되도록 평탄화한다.
+  // 이렇게 해야 ×3, ×4가 된 뒤에도 대표 말 한 번의 이동으로 전원이 함께 움직인다.
+  const followers=(leaderId:string)=>room.pieces.filter(candidate=>{let carrier=candidate.carriedBy;while(carrier){if(carrier===leaderId)return true;carrier=room.pieces.find(x=>x.id===carrier)?.carriedBy}return false;});
+  const group = [p, ...followers(p.id)];
   const { to, route: nextRoute } = previewMove(room,pieceId,result,takeShortcut);
   if (to === 99) { group.forEach(x => { x.finished = true; x.pos = 99; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; }); player.finished += group.length; }
   else { group.forEach(x => { x.pos = to; x.route = nextRoute; }); const enemies = room.pieces.filter(x => x.pos === to && !x.finished && x.owner !== player.id && (room.mode === "solo" || room.players.find(a => a.id === x.owner)?.team !== player.team));
     const caught = enemies.length > 0; enemies.forEach(x => { x.pos = -1; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; });
     if (caught) room.lastCapture = { by: player.id, count: enemies.length, at: Date.now() };
     const host=stackWithId&&room.pieces.find(x=>x.id===stackWithId&&x.pos===to&&!x.finished&&!x.carriedBy);
-    if(host){const hostGroup=[host,...room.pieces.filter(x=>host.stackedWith.includes(x.id))],all=[...new Map([...hostGroup,...group].map(x=>[x.id,x])).values()];host.stackedWith=all.filter(x=>x.id!==host.id).map(x=>x.id);host.carriedBy=undefined;all.filter(x=>x.id!==host.id).forEach(x=>{x.stackedWith=[];x.carriedBy=host.id;x.route=nextRoute;});}
-    else {const friends = room.pieces.filter(x => x.pos === to && x.owner === player.id && x.id !== p.id && !x.carriedBy && !group.some(member=>member.id===x.id));const stacked=[...new Map([...group,...friends].map(x=>[x.id,x])).values()];p.stackedWith=stacked.filter(x=>x.id!==p.id).map(x=>x.id);p.carriedBy=undefined;stacked.filter(x=>x.id!==p.id).forEach(x=>{x.stackedWith=[];x.carriedBy=p.id;x.route=nextRoute;});}
+    if(host){const hostGroup=[host,...followers(host.id)],all=[...new Map([...hostGroup,...group].map(x=>[x.id,x])).values()];host.stackedWith=all.filter(x=>x.id!==host.id).map(x=>x.id);host.carriedBy=undefined;all.filter(x=>x.id!==host.id).forEach(x=>{x.stackedWith=[];x.carriedBy=host.id;x.route=nextRoute;});}
+    else {const friends = room.pieces.filter(x => x.pos === to && x.owner === player.id && x.id !== p.id && !x.carriedBy && !group.some(member=>member.id===x.id));const friendGroups=friends.flatMap(friend=>[friend,...followers(friend.id)]),stacked=[...new Map([...group,...friendGroups].map(x=>[x.id,x])).values()];p.stackedWith=stacked.filter(x=>x.id!==p.id).map(x=>x.id);p.carriedBy=undefined;stacked.filter(x=>x.id!==p.id).forEach(x=>{x.stackedWith=[];x.carriedBy=p.id;x.route=nextRoute;});}
     if (caught) room.extra = true;
   }
   const target = room.mode === "team" ? room.players.filter(x => x.team === player.team).reduce((n,x)=>n+x.finished,0) : player.finished;
