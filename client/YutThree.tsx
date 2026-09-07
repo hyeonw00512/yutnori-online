@@ -22,13 +22,12 @@ export function YutThree({ data }: { data?: Roll }) {
     // 큰 윷 네 개가 멈춘 뒤에도 서로 겹치지 않도록 접시 안 착지 간격을 넉넉히 둔다.
     const sticks: THREE.Group[] = [], end = [[-1.42,.78],[.42,.92],[-1.18,-.82],[1.32,-.76]];
     for (let i = 0; i < 4; i++) { const g = new THREE.Group();
-      // 둥근 윗면, 평평한 아랫면, 나무결과 끝마감을 가진 전통 윷 단면이다.
+      // 접시 위에 확실히 눕는 낮은 목재 윷: 세로로 서 보이는 반원 단면 대신 둥근 통나무 단면을 사용한다.
       const grain=woodTexture(); const wood = new THREE.MeshStandardMaterial({ color: 0xd8893b, map:grain, roughness: .3, metalness: .04 });
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(.24, .24, 1.34, 14, 1, false, 0, Math.PI), wood); body.rotation.z = Math.PI / 2; body.castShadow = true; g.add(body);
-      const flat = new THREE.Mesh(new THREE.BoxGeometry(1.34, .028, .48), new THREE.MeshStandardMaterial({ color: 0xb9672d, roughness: .46 })); flat.position.y = -.012; flat.castShadow = true; g.add(flat);
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(.2,.94,6,14), wood); body.rotation.z = Math.PI / 2; body.scale.z=.86; body.castShadow = true; g.add(body);
       const frontDecor = new THREE.Group(), backDecor = new THREE.Group(); const ink = new THREE.MeshStandardMaterial({ color: 0x59301b, roughness: .38, metalness:.08 });
       // 앞면은 붉은 점 대신 전통 목가구처럼 보이는 세 개의 짧은 음각 인레이를 넣는다.
-      for (const x of [-.34, 0, .34]) { const groove = new THREE.Mesh(new THREE.BoxGeometry(.17, .022, .105), ink); groove.position.set(x, .242, .045); groove.rotation.y = x === 0 ? 0 : (x < 0 ? -.22 : .22); groove.castShadow = true; frontDecor.add(groove); }
+      for (const x of [-.34, 0, .34]) { const groove = new THREE.Mesh(new THREE.BoxGeometry(.17, .018, .10), ink); groove.position.set(x, .205, .035); groove.rotation.y = x === 0 ? 0 : (x < 0 ? -.22 : .22); groove.castShadow = true; frontDecor.add(groove); }
       // X 표시는 빽도 전용 첫 번째 윷의 평평한 뒷면에만 남긴다.
       if (i === 0) for (const angle of [-.62, .62]) { const mark = new THREE.Mesh(new THREE.BoxGeometry(.48, .026, .052), new THREE.MeshStandardMaterial({ color: 0x7c211a, roughness: .4 })); mark.position.set(0, -.035, 0); mark.rotation.y = angle; backDecor.add(mark); }
       g.add(frontDecor,backDecor);
