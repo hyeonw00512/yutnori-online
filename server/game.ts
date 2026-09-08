@@ -69,9 +69,15 @@ export function move(room: Room, pieceId: string, result: Result, takeShortcut =
   // 업기 그룹은 항상 대표 말 하나에 모든 말이 직접 연결되도록 평탄화한다.
   // 이렇게 해야 ×3, ×4가 된 뒤에도 대표 말 한 번의 이동으로 전원이 함께 움직인다.
   const followers=(leaderId:string)=>room.pieces.filter(candidate=>{let carrier=candidate.carriedBy;while(carrier){if(carrier===leaderId)return true;carrier=room.pieces.find(x=>x.id===carrier)?.carriedBy}return false;});
-  const group = [p, ...followers(p.id)];
+  const group = [p, ...followers(p.id)], fromPos = p.pos;
   const { to, route: nextRoute } = previewMove(room,pieceId,result,takeShortcut);
-  if (to === 99) { group.forEach(x => { x.finished = true; x.pos = 99; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; }); player.finished += group.length; }
+  if (to === 99) {
+    // 도 뒤 빽도로 완주할 때 출발·완주 칸의 상대 말도 잡는다. 잡기 보상은 서버가 추가 던지기로 바꾼다.
+    const finishEnemies=result === "BACKDO"&&fromPos===1?room.pieces.filter(x=>x.pos===0&&!x.finished&&x.owner!==player.id&&(room.mode==="solo"||room.players.find(a=>a.id===x.owner)?.team!==player.team)):[];
+    finishEnemies.forEach(x=>{x.pos=-1;x.stackedWith=[];x.carriedBy=undefined;x.route=undefined});
+    if(finishEnemies.length){room.lastCapture={by:player.id,count:finishEnemies.length,at:Date.now()};room.extra=true;}
+    group.forEach(x => { x.finished = true; x.pos = 99; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; }); player.finished += group.length;
+  }
   else { group.forEach(x => { x.pos = to; x.route = nextRoute; }); const enemies = room.pieces.filter(x => x.pos === to && !x.finished && x.owner !== player.id && (room.mode === "solo" || room.players.find(a => a.id === x.owner)?.team !== player.team));
     const caught = enemies.length > 0; enemies.forEach(x => { x.pos = -1; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; });
     if (caught) room.lastCapture = { by: player.id, count: enemies.length, at: Date.now() };
