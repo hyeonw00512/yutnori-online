@@ -1,11 +1,11 @@
 export type Result = "DO" | "GAE" | "GEOL" | "YUT" | "MO" | "BACKDO" | "NAK";
 export type Piece = { id: string; owner: string; pos: number; finished: boolean; stackedWith: string[]; carriedBy?: string; route?: "a" | "b" };
-export type StackOffer = { playerId: string; pieceId: string; hostPieceId: string; takeShortcut: boolean };
+export type StackOffer = { playerId: string; pieceId: string; hostPieceId: string; takeShortcut: boolean; resultIndex: number };
 export type Player = { id: string; name: string; team: number; connected: boolean; finished: number; disconnectedAt?: number };
 export type GameEvent = { id: number; kind: "roll" | "move" | "capture" | "finish" | "system"; text: string; team?: number; at: number };
 export type Room = {
   code: string; hostId: string; status: "lobby" | "playing" | "finished"; mode: "solo" | "team"; practice?: boolean;
-  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; events?: GameEvent[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number }; stackOffer?: StackOffer; extra: boolean; winner?: number; rematchVotes?: string[];
+  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; extraThrows: number; events?: GameEvent[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number }; stackOffer?: StackOffer; extra: boolean; winner?: number; rematchVotes?: string[];
 };
 
 export const STEPS: Record<Result, number> = { DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5, BACKDO: -1, NAK: 0 };
@@ -24,11 +24,13 @@ export const roll = (): { result: Result; sticks: boolean[] } => {
 };
 export const current = (room: Room) => room.players[room.turn];
 export function createPieces(room: Room) { room.pieces = room.players.flatMap(p => Array.from({ length: 4 }, (_, n) => ({ id: `${p.id}-${n}`, owner: p.id, pos: -1, finished: false, stackedWith: [] }))); }
-export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
-// -1은 출발/완주 공용 칸이며 1~19는 외곽이다. 빽도 첫 이동은 19번 칸으로 간다.
+export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.extraThrows=0; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
+// -1은 출발 대기, 0은 출발·완주 칸, 1~19는 외곽이다.
 const forward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return 1;
-  if (pos === 19) return 99;
+  // 마지막 외곽 칸에서는 먼저 출발·완주 칸을 밟고, 그 다음 이동에 완주한다.
+  if (pos === 19) return 0;
+  if (pos === 0) return 99;
   if (pos === 5) return route === "a" ? 20 : 6; if (pos === 10) return route === "b" ? 25 : 11;
   if (pos === 20) return 21; if (pos === 21) return 22; if (pos === 22) return route === "b" ? 27 : 23; if (pos === 23) return 24; if (pos === 24) return 15;
   if (pos === 25) return 26; if (pos === 26) return 22;
@@ -36,8 +38,9 @@ const forward = (pos: number, route?: "a" | "b") => {
   return pos + 1;
 };
 const backward = (pos: number) => {
-  if (pos === -1) return 19;
-  if (pos === 1) return -1;
+  if (pos === -1) return -1;
+  // 도로 첫 칸에 나온 뒤 빽도가 나오면 출발·완주 공용 칸으로 돌아와 완주한다.
+  if (pos === 1) return 99;
   if (pos === 20) return 5; if (pos === 21) return 20; if (pos === 22) return 21; if (pos === 23) return 22; if (pos === 24) return 23;
   if (pos === 25) return 10; if (pos === 26) return 25; if (pos === 27) return 22; if (pos === 28) return 27;
   return pos - 1;
@@ -70,7 +73,5 @@ export function move(room: Room, pieceId: string, result: Result, takeShortcut =
   }
   const target = room.mode === "team" ? room.players.filter(x => x.team === player.team).reduce((n,x)=>n+x.finished,0) : player.finished;
   if (target >= (room.mode === "team" ? room.players.filter(x=>x.team===player.team).length * 4 : 4)) { room.status = "finished"; room.winner = room.mode === "team" ? player.team : room.players.findIndex(x=>x.id===player.id); return; }
-  room.extra ||= result === "YUT" || result === "MO";
-  if (!room.extra) room.turn = (room.turn + 1) % room.players.length;
-  room.extra = false;
+  // 턴과 추가 던지기 처리는 서버가 누적 결과를 모두 고려해 결정한다.
 }
