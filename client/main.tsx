@@ -32,9 +32,9 @@ function Board({room,me,onMove,pendingIndex=0,rolling,fx,overlay}:{room:Room;me:
  const locations:[number,number][]=[[92,92],[92,75],[92,58],[92,41],[92,24],[92,8],[75,8],[58,8],[41,8],[24,8],[8,8],[8,25],[8,42],[8,59],[8,76],[8,92],[25,92],[42,92],[59,92],[76,92],[75,25],[62,38],[50,50],[38,62],[25,75],[25,25],[38,38],[62,62],[75,75]];
  const canMove=!rolling&&room.pending.length>0&&room.extraThrows===0&&room.players[room.turn]?.id===me;
  const amount=({DO:1,GAE:2,GEOL:3,YUT:4,MO:5,BACKDO:-1,NAK:0} as const)[room.pending[pendingIndex] ?? "NAK"];
- const forward=(p:number,route?:"a"|"b")=>p===-1?1:p===19?99:p===5?(route==="a"?20:6):p===10?(route==="b"?25:11):p===20?21:p===21?22:p===22?(route==="b"?27:23):p===23?24:p===24?15:p===25?26:p===26?22:p===27?28:p===28?99:p+1;
- const backward=(p:number)=>p===-1?-1:p===1?99:p===20?5:p===21?20:p===22?21:p===23?22:p===24?23:p===25?10:p===26?25:p-1;
- const target=(pos:number,shortcut=false,route?:"a"|"b")=>{let at=pos,activeRoute=route;if(amount>0&&shortcut)activeRoute=pos===5?"a":"b";if(amount>0&&pos===22)activeRoute=shortcut?"b":"a";for(let i=0;i<Math.abs(amount);i++){at=amount>0?forward(at,activeRoute):backward(at);if(at===15||at===99)activeRoute=undefined;if(at===99)break}return at};
+ const forward=(p:number,route?:"a"|"b")=>p===-1?1:p===19||p===28?0:p===0?99:p===5?(route==="a"?20:6):p===10?(route==="b"?25:11):p===20?21:p===21?22:p===22?(route==="b"?27:23):p===23?24:p===24?15:p===25?26:p===26?22:p===27?28:p+1;
+ const backward=(p:number,route?:"a"|"b")=>p===-1?-1:p===0?(route==="b"?28:19):p===1?99:p===15&&route==="a"?24:p===20?5:p===21?20:p===22?21:p===23?22:p===24?23:p===25?10:p===26?25:p===27?22:p-1;
+ const target=(pos:number,shortcut=false,route?:"a"|"b")=>{let at=pos,activeRoute=route;if(amount>0&&shortcut)activeRoute=pos===5?"a":"b";if(amount>0&&pos===22)activeRoute=shortcut?"b":"a";for(let i=0;i<Math.abs(amount);i++){at=amount>0?forward(at,activeRoute):backward(at,activeRoute);if(at===99)activeRoute=undefined;if(at===99)break}return at};
  const waitingPieces=room.pieces.filter(p=>p.owner===me&&p.pos===-1&&!p.finished).sort((a,b)=>a.id.localeCompare(b.id,undefined,{numeric:true}));
  const nextWaiting=waitingPieces[0];
  // 대기 말은 다음 번호 하나만 후보로 둔다. 첫 이동은 1번, 이후에는 판 위 말과 다음 대기 말을 고를 수 있다.

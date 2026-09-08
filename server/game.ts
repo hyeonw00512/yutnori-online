@@ -28,26 +28,31 @@ export const roll = (): { result: Result; sticks: boolean[] } => {
 export const current = (room: Room) => room.players[room.turn];
 export function createPieces(room: Room) { room.pieces = room.players.flatMap(p => Array.from({ length: 4 }, (_, n) => ({ id: `${p.id}-${n}`, owner: p.id, pos: -1, finished: false, stackedWith: [] }))); }
 export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.extraThrows=0; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
-// -1은 출발 대기이며 1~19는 외곽이다. 19번 칸은 마지막 칸이다.
+// -1은 출발 대기, 0은 출발·완주 공용 칸, 1~19는 외곽이다.
 const forward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return 1;
-  // 마지막 칸에 도착했을 때 이동력이 남아 있으면 완주한다. 정확히 도착하면 다음 이동 때 완주한다.
-  if (pos === 19) return 99;
+  // 공용 칸에는 먼저 착지한다. 착지 뒤 이동력이 남아 있을 때만 완주한다.
+  if (pos === 19 || pos === 28) return 0;
+  if (pos === 0) return 99;
   if (pos === 5) return route === "a" ? 20 : 6; if (pos === 10) return route === "b" ? 25 : 11;
   if (pos === 20) return 21; if (pos === 21) return 22; if (pos === 22) return route === "b" ? 27 : 23; if (pos === 23) return 24; if (pos === 24) return 15;
   if (pos === 25) return 26; if (pos === 26) return 22;
   if (pos === 27) return 28; if (pos === 28) return 99;
   return pos + 1;
 };
-const backward = (pos: number) => {
+const backward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return -1;
+  // 공용 칸은 바깥길 또는 오른쪽 아래 지름길로 들어온 경로를 따라 되돌아간다.
+  if (pos === 0) return route === "b" ? 28 : 19;
   // 도로 첫 칸에 나온 뒤 빽도가 나오면 출발·완주 공용 칸으로 돌아와 완주한다.
   if (pos === 1) return 99;
+  // 중앙을 지나 왼쪽 아래 모서리에 합류한 말은 지름길을 따라 한 칸 되돌아간다.
+  if (pos === 15 && route === "a") return 24;
   if (pos === 20) return 5; if (pos === 21) return 20; if (pos === 22) return 21; if (pos === 23) return 22; if (pos === 24) return 23;
   if (pos === 25) return 10; if (pos === 26) return 25; if (pos === 27) return 22; if (pos === 28) return 27;
   return pos - 1;
 };
-const travel = (pos: number, steps: number, route?: "a" | "b") => { let at = pos, activeRoute = route; for (let i = 0; i < Math.abs(steps); i++) { at = steps > 0 ? forward(at, activeRoute) : backward(at); if (at === 15 || at === 99) activeRoute = undefined; if (at === 99) break; } return { to: at, route: activeRoute }; };
+const travel = (pos: number, steps: number, route?: "a" | "b") => { let at = pos, activeRoute = route; for (let i = 0; i < Math.abs(steps); i++) { at = steps > 0 ? forward(at, activeRoute) : backward(at, activeRoute); if (at === 99) activeRoute = undefined; if (at === 99) break; } return { to: at, route: activeRoute }; };
 export function previewMove(room: Room, pieceId: string, result: Result, takeShortcut = false) { const p=room.pieces.find(x=>x.id===pieceId); if(!p)throw new Error("이동할 수 없는 말입니다."); const steps=STEPS[result]; if(!steps)throw new Error("낙은 말을 이동하지 않습니다."); if(takeShortcut&&(steps<1||![5,10,22].includes(p.pos)))throw new Error("이 위치에서는 지름길을 선택할 수 없습니다."); let route=p.route;if(steps>0&&takeShortcut)route=p.pos===5?"a":"b";if(steps>0&&p.pos===22)route=takeShortcut?"b":"a";return travel(p.pos,steps,route); }
 export function move(room: Room, pieceId: string, result: Result, takeShortcut = false, stackWithId?: string) {
   const player = current(room); const p = room.pieces.find(x => x.id === pieceId);
