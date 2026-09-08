@@ -39,7 +39,8 @@ function Board({room,me,onMove,pendingIndex=0,rolling,fx,overlay}:{room:Room;me:
  const nextWaiting=waitingPieces[0];
  // 대기 말은 다음 번호 하나만 후보로 둔다. 첫 이동은 1번, 이후에는 판 위 말과 다음 대기 말을 고를 수 있다.
  // 업힌 말은 대표 말을 따라갈 뿐, 독립 이동 후보로 만들지 않는다.
- const movable=room.pieces.filter(p=>canMove&&p.owner===me&&!p.finished&&!p.carriedBy&&(p.pos!==-1||p.id===nextWaiting?.id));
+ // 빽도는 아직 출발하지 않은 말을 선택할 수 없고, 판 위에 있는 말만 목적지가 빛난다.
+ const movable=room.pieces.filter(p=>canMove&&p.owner===me&&!p.finished&&!p.carriedBy&&(amount<0?p.pos!==-1:(p.pos!==-1||p.id===nextWaiting?.id)));
  const normalMoves=movable.map(piece=>({piece,to:target(piece.pos,false,piece.route)}));
  const shortcutMoves=movable.filter(p=>amount>0&&[5,10,22].includes(p.pos)).map(piece=>({piece,to:target(piece.pos,true,piece.route)}));
  const targets=new Set(normalMoves.map(x=>x.to===-1?0:x.to));

@@ -50,6 +50,8 @@ export function previewMove(room: Room, pieceId: string, result: Result, takeSho
 export function move(room: Room, pieceId: string, result: Result, takeShortcut = false, stackWithId?: string) {
   const player = current(room); const p = room.pieces.find(x => x.id === pieceId);
   if (!p || p.owner !== player.id || p.finished || p.carriedBy) throw new Error("이동할 수 없는 말입니다.");
+  // 빽도는 판 위의 말만 한 칸 뒤로 움직일 수 있다. 출발 대기 말에는 적용하지 않는다.
+  if (result === "BACKDO" && p.pos === -1) throw new Error("빽도는 판 위에 있는 말만 이동할 수 있습니다.");
   // 출발 대기 중인 말은 1번부터 순서대로 판에 올린다. 잡혀 돌아온 말도 번호가 낮으면 먼저 다시 출발한다.
   if (p.pos === -1) {
     const firstWaiting = room.pieces.filter(x => x.owner === player.id && x.pos === -1 && !x.finished)
