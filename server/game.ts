@@ -9,9 +9,12 @@ export type Room = {
 };
 
 export const STEPS: Record<Result, number> = { DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5, BACKDO: -1, NAK: 0 };
-const weights: Result[] = ["DO", "DO", "DO", "GAE", "GAE", "GAE", "GEOL", "GEOL", "YUT", "MO", "BACKDO", "NAK"];
+// 재미 우선 확률: 도 22, 개 28, 걸 21, 윷 10, 모 8, 빽도 6, 낙 5 (합계 100).
+export const ROLL_WEIGHTS: Record<Result, number> = { DO: 22, GAE: 28, GEOL: 21, YUT: 10, MO: 8, BACKDO: 6, NAK: 5 };
+const weightEntries = Object.entries(ROLL_WEIGHTS) as [Result, number][];
 export const roll = (): { result: Result; sticks: boolean[] } => {
-  const result = weights[Math.floor(Math.random() * weights.length)];
+  let pick = Math.random() * 100, result: Result = "NAK";
+  for (const [candidate, weight] of weightEntries) { pick -= weight; if (pick < 0) { result = candidate; break; } }
   if (result === "NAK") return { result, sticks: [true, false, true, false] };
   // 0번은 X가 새겨진 '빽도 윷'이다. 빽도일 때만 이 윷의 뒷면이 위로 온다.
   if (result === "BACKDO") return { result, sticks: [false, true, true, true] };
@@ -25,12 +28,11 @@ export const roll = (): { result: Result; sticks: boolean[] } => {
 export const current = (room: Room) => room.players[room.turn];
 export function createPieces(room: Room) { room.pieces = room.players.flatMap(p => Array.from({ length: 4 }, (_, n) => ({ id: `${p.id}-${n}`, owner: p.id, pos: -1, finished: false, stackedWith: [] }))); }
 export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.extraThrows=0; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
-// -1은 출발 대기, 0은 출발·완주 칸, 1~19는 외곽이다.
+// -1은 출발 대기이며 1~19는 외곽이다. 19번 칸은 마지막 칸이다.
 const forward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return 1;
-  // 마지막 외곽 칸에서는 먼저 출발·완주 칸을 밟고, 그 다음 이동에 완주한다.
-  if (pos === 19) return 0;
-  if (pos === 0) return 99;
+  // 마지막 칸에 도착했을 때 이동력이 남아 있으면 완주한다. 정확히 도착하면 다음 이동 때 완주한다.
+  if (pos === 19) return 99;
   if (pos === 5) return route === "a" ? 20 : 6; if (pos === 10) return route === "b" ? 25 : 11;
   if (pos === 20) return 21; if (pos === 21) return 22; if (pos === 22) return route === "b" ? 27 : 23; if (pos === 23) return 24; if (pos === 24) return 15;
   if (pos === 25) return 26; if (pos === 26) return 22;
