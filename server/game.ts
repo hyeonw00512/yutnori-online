@@ -44,8 +44,8 @@ const backward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return -1;
   // 공용 칸은 바깥길 또는 오른쪽 아래 지름길로 들어온 경로를 따라 되돌아간다.
   if (pos === 0) return route === "b" ? 28 : 19;
-  // 도로 첫 칸에 나온 뒤 빽도가 나오면 출발·완주 공용 칸으로 돌아와 완주한다.
-  if (pos === 1) return 99;
+  // 빽도도 예외 없이 정확히 한 칸 뒤로 간다. 첫 칸에서는 출발·완주 공용 칸에 착지한다.
+  if (pos === 1) return 0;
   // 중앙을 지나 왼쪽 아래 모서리에 합류한 말은 지름길을 따라 한 칸 되돌아간다.
   if (pos === 15 && route === "a") return 24;
   if (pos === 20) return 5; if (pos === 21) return 20; if (pos === 22) return 21; if (pos === 23) return 22; if (pos === 24) return 23;
@@ -69,13 +69,9 @@ export function move(room: Room, pieceId: string, result: Result, takeShortcut =
   // 업기 그룹은 항상 대표 말 하나에 모든 말이 직접 연결되도록 평탄화한다.
   // 이렇게 해야 ×3, ×4가 된 뒤에도 대표 말 한 번의 이동으로 전원이 함께 움직인다.
   const followers=(leaderId:string)=>room.pieces.filter(candidate=>{let carrier=candidate.carriedBy;while(carrier){if(carrier===leaderId)return true;carrier=room.pieces.find(x=>x.id===carrier)?.carriedBy}return false;});
-  const group = [p, ...followers(p.id)], fromPos = p.pos;
+  const group = [p, ...followers(p.id)];
   const { to, route: nextRoute } = previewMove(room,pieceId,result,takeShortcut);
   if (to === 99) {
-    // 도 뒤 빽도로 완주할 때 출발·완주 칸의 상대 말도 잡는다. 잡기 보상은 서버가 추가 던지기로 바꾼다.
-    const finishEnemies=result === "BACKDO"&&fromPos===1?room.pieces.filter(x=>x.pos===0&&!x.finished&&x.owner!==player.id&&(room.mode==="solo"||room.players.find(a=>a.id===x.owner)?.team!==player.team)):[];
-    finishEnemies.forEach(x=>{x.pos=-1;x.stackedWith=[];x.carriedBy=undefined;x.route=undefined});
-    if(finishEnemies.length){room.lastCapture={by:player.id,count:finishEnemies.length,at:Date.now(),owners:[...new Set(finishEnemies.map(x=>x.owner))]};room.extra=true;}
     group.forEach(x => { x.finished = true; x.pos = 99; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; }); player.finished += group.length;
   }
   else { group.forEach(x => { x.pos = to; x.route = nextRoute; }); const enemies = room.pieces.filter(x => x.pos === to && !x.finished && x.owner !== player.id && (room.mode === "solo" || room.players.find(a => a.id === x.owner)?.team !== player.team));
