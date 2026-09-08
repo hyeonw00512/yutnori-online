@@ -5,7 +5,7 @@ export type Player = { id: string; name: string; team: number; connected: boolea
 export type GameEvent = { id: number; kind: "roll" | "move" | "capture" | "finish" | "system"; text: string; team?: number; at: number };
 export type Room = {
   code: string; hostId: string; status: "lobby" | "playing" | "finished"; mode: "solo" | "team"; practice?: boolean;
-  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; extraThrows: number; events?: GameEvent[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number }; stackOffer?: StackOffer; extra: boolean; winner?: number; rematchVotes?: string[];
+  players: Player[]; pieces: Piece[]; turn: number; pending: Result[]; extraThrows: number; events?: GameEvent[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number; owners?: string[] }; stackOffer?: StackOffer; extra: boolean; winner?: number; rematchVotes?: string[];
 };
 
 export const STEPS: Record<Result, number> = { DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5, BACKDO: -1, NAK: 0 };
@@ -75,12 +75,12 @@ export function move(room: Room, pieceId: string, result: Result, takeShortcut =
     // 도 뒤 빽도로 완주할 때 출발·완주 칸의 상대 말도 잡는다. 잡기 보상은 서버가 추가 던지기로 바꾼다.
     const finishEnemies=result === "BACKDO"&&fromPos===1?room.pieces.filter(x=>x.pos===0&&!x.finished&&x.owner!==player.id&&(room.mode==="solo"||room.players.find(a=>a.id===x.owner)?.team!==player.team)):[];
     finishEnemies.forEach(x=>{x.pos=-1;x.stackedWith=[];x.carriedBy=undefined;x.route=undefined});
-    if(finishEnemies.length){room.lastCapture={by:player.id,count:finishEnemies.length,at:Date.now()};room.extra=true;}
+    if(finishEnemies.length){room.lastCapture={by:player.id,count:finishEnemies.length,at:Date.now(),owners:[...new Set(finishEnemies.map(x=>x.owner))]};room.extra=true;}
     group.forEach(x => { x.finished = true; x.pos = 99; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; }); player.finished += group.length;
   }
   else { group.forEach(x => { x.pos = to; x.route = nextRoute; }); const enemies = room.pieces.filter(x => x.pos === to && !x.finished && x.owner !== player.id && (room.mode === "solo" || room.players.find(a => a.id === x.owner)?.team !== player.team));
     const caught = enemies.length > 0; enemies.forEach(x => { x.pos = -1; x.stackedWith = []; x.carriedBy=undefined; x.route = undefined; });
-    if (caught) room.lastCapture = { by: player.id, count: enemies.length, at: Date.now() };
+    if (caught) room.lastCapture = { by: player.id, count: enemies.length, at: Date.now(), owners: [...new Set(enemies.map(x=>x.owner))] };
     const host=stackWithId&&room.pieces.find(x=>x.id===stackWithId&&x.pos===to&&!x.finished&&!x.carriedBy);
     if(host){const hostGroup=[host,...followers(host.id)],all=[...new Map([...hostGroup,...group].map(x=>[x.id,x])).values()];host.stackedWith=all.filter(x=>x.id!==host.id).map(x=>x.id);host.carriedBy=undefined;all.filter(x=>x.id!==host.id).forEach(x=>{x.stackedWith=[];x.carriedBy=host.id;x.route=nextRoute;});}
     else {const friends = room.pieces.filter(x => x.pos === to && x.owner === player.id && x.id !== p.id && !x.carriedBy && !group.some(member=>member.id===x.id));const friendGroups=friends.flatMap(friend=>[friend,...followers(friend.id)]),stacked=[...new Map([...group,...friendGroups].map(x=>[x.id,x])).values()];p.stackedWith=stacked.filter(x=>x.id!==p.id).map(x=>x.id);p.carriedBy=undefined;stacked.filter(x=>x.id!==p.id).forEach(x=>{x.stackedWith=[];x.carriedBy=p.id;x.route=nextRoute;});}
