@@ -1,7 +1,7 @@
 export type Result = "DO" | "GAE" | "GEOL" | "YUT" | "MO" | "BACKDO" | "NAK";
 export type Piece = { id: string; owner: string; pos: number; finished: boolean; stackedWith: string[]; carriedBy?: string; route?: "a" | "b" };
 export type StackOffer = { playerId: string; pieceId: string; hostPieceId: string; takeShortcut: boolean; resultIndex: number };
-export type Player = { id: string; name: string; team: number; connected: boolean; finished: number; disconnectedAt?: number };
+export type Player = { id: string; name: string; team: number; connected: boolean; finished: number; auto?: boolean; disconnectedAt?: number };
 // 관전자는 게임 상태를 받지만 말·팀·투표에는 참여하지 않는다.
 export type Spectator = { id: string; name: string; connected: boolean };
 export type GameEvent = { id: number; kind: "roll" | "move" | "capture" | "finish" | "system"; text: string; team?: number; at: number };
