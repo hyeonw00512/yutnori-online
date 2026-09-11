@@ -114,3 +114,18 @@ body{background:radial-gradient(circle at 50% 0,#fff9e9 0,#ead4a7 66%,#bd8250 15
   .game>header .header-bgm-slot{grid-area:sound!important;justify-self:end!important}
   .game>header .sound-menu{right:0!important;top:calc(100% + 6px)!important}
 }
+
+/* 세로 모바일에서는 긴 기록/채팅을 게임판 밖으로 밀지 않고 버튼으로 연다. */
+.mobile-info-tools{display:none!important}
+@media(max-width:760px){
+  .right-rail,.lobby-play>.chat-panel{display:none!important}
+  .mobile-info-tools{display:flex!important;gap:7px!important;margin:7px 4px!important}
+  .mobile-info-tools>button{flex:1!important;padding:8px 9px!important;border:1px solid #d39a53!important;border-radius:8px!important;background:linear-gradient(#fff2c9,#e9b66b)!important;color:#63371f!important;font-size:12px!important;font-weight:900!important;box-shadow:0 2px 0 #754020!important}
+  .mobile-info-backdrop{position:fixed!important;z-index:150!important;inset:0!important;display:flex!important;align-items:flex-end!important;padding:12px!important;background:#21120799!important}
+  .mobile-info-drawer{position:relative!important;width:100%!important;max-height:min(74vh,620px)!important;overflow:hidden!important;padding:14px 11px 11px!important;border:3px solid #734222!important;border-radius:15px 15px 11px 11px!important;background:linear-gradient(#fff7e5,#ebc77f)!important;box-shadow:0 -8px 26px #1f100988!important}
+  .mobile-info-drawer .activity-panel,.mobile-info-drawer .chat-panel{display:flex!important;height:min(62vh,525px)!important;min-height:0!important;max-height:none!important;flex:1 1 auto!important;margin:0!important;border:0!important;border-radius:8px!important;background:#fff8e9!important}
+  .mobile-info-drawer .activity-list,.mobile-info-drawer .messages{max-height:none!important;flex:1 1 auto!important}
+  .mobile-info-drawer .chat-panel form{flex:0 0 auto!important}
+  .mobile-info-drawer .activity-heading button,.mobile-info-drawer .chat-toggle{display:none!important}
+  .mobile-info-close{display:block!important;margin:0 0 8px auto!important;padding:5px 9px!important;border:1px solid #8d4b29!important;border-radius:7px!important;background:#8a4828!important;color:#fff8df!important;font-size:11px!important;font-weight:900!important}
+}
