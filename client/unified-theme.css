@@ -129,3 +129,19 @@ body{background:radial-gradient(circle at 50% 0,#fff9e9 0,#ead4a7 66%,#bd8250 15
   .mobile-info-drawer .activity-heading button,.mobile-info-drawer .chat-toggle{display:none!important}
   .mobile-info-close{display:block!important;margin:0 0 8px auto!important;padding:5px 9px!important;border:1px solid #8d4b29!important;border-radius:7px!important;background:#8a4828!important;color:#fff8df!important;font-size:11px!important;font-weight:900!important}
 }
+
+/* 대기실에서는 실제 입장한 참가자의 닉네임을 항상 보여 준다. */
+.game:has(.lobby-play)>.players{position:relative!important;clip:auto!important;clip-path:none!important;display:flex!important;width:auto!important;height:auto!important;min-height:0!important;margin:7px 0!important;padding:8px!important;overflow-x:auto!important;border:1px solid #bd8b52!important;border-radius:10px!important;background:#fff0c9aa!important}
+.game:has(.lobby-play)>.players::before{content:"대기 중인 참가자";align-self:center!important;flex:0 0 auto!important;margin-right:3px!important;color:#6b3d24!important;font-size:12px!important;font-weight:900!important;white-space:nowrap!important}
+.game:has(.lobby-play)>.players div{flex:0 0 auto!important}
+@media(max-width:760px){.game:has(.lobby-play)>.players{margin:5px 2px!important;padding:6px!important}.game:has(.lobby-play)>.players::before{font-size:11px!important}}
+
+/* 8명 게임에서도 말 현황이 윷·이동력 영역을 밀지 않도록 높이를 제한한다. */
+.piece-status{max-height:154px!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important}
+@media(max-width:760px){
+  .piece-status{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 5px!important;max-height:142px!important;padding:5px!important}
+  .piece-status>div{min-width:0!important;min-height:26px!important}
+  .piece-status b{max-width:30px!important}
+  .piece-status .mini-pieces{gap:0!important}
+  .piece-status .mini-piece{width:16px!important;height:16px!important;font-size:9px!important}
+}
