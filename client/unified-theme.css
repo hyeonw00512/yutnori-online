@@ -145,3 +145,9 @@ body{background:radial-gradient(circle at 50% 0,#fff9e9 0,#ead4a7 66%,#bd8250 15
   .piece-status .mini-pieces{gap:0!important}
   .piece-status .mini-piece{width:16px!important;height:16px!important;font-size:9px!important}
 }
+
+/* 축소된 PC 창에서도 판은 반드시 정사각형으로 유지한다.
+   그래야 퍼센트 좌표로 그린 외곽선·대각선·칸이 같은 비율로 줄어든다. */
+@media(min-width:761px){
+  .play>div:first-child>.board{aspect-ratio:1 / 1!important;height:auto!important;align-self:start!important}
+}

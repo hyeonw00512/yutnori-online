@@ -7,7 +7,7 @@ export type Spectator = { id: string; name: string; connected: boolean };
 export type GameEvent = { id: number; kind: "roll" | "move" | "capture" | "finish" | "system"; text: string; team?: number; at: number };
 export type Room = {
   code: string; hostId: string; status: "lobby" | "playing" | "finished"; mode: "solo" | "team"; practice?: boolean;
-  players: Player[]; spectators: Spectator[]; pieces: Piece[]; turn: number; pending: Result[]; extraThrows: number; actionDeadline?: number; events?: GameEvent[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number; owners?: string[] }; stackOffer?: StackOffer; extra: boolean; winner?: number; rematchVotes?: string[];
+  players: Player[]; spectators: Spectator[]; pieces: Piece[]; turn: number; pending: Result[]; extraThrows: number; actionDeadline?: number; events?: GameEvent[]; lastRoll?: { result: Result; sticks: boolean[]; rollId: number }; lastCapture?: { by: string; count: number; at: number; owners?: string[] }; stackOffer?: StackOffer; extra: boolean; winner?: number; winnerName?: string; rematchVotes?: string[];
 };
 
 export const STEPS: Record<Result, number> = { DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5, BACKDO: -1, NAK: 0 };
@@ -29,7 +29,7 @@ export const roll = (): { result: Result; sticks: boolean[] } => {
 };
 export const current = (room: Room) => room.players[room.turn];
 export function createPieces(room: Room) { room.pieces = room.players.flatMap(p => Array.from({ length: 4 }, (_, n) => ({ id: `${p.id}-${n}`, owner: p.id, pos: -1, finished: false, stackedWith: [] }))); }
-export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.extraThrows=0; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
+export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.extraThrows=0; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.winnerName = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
 // -1은 출발 대기, 0은 출발·완주 공용 칸, 1~19는 외곽이다.
 const forward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return 1;
@@ -85,6 +85,6 @@ export function move(room: Room, pieceId: string, result: Result, takeShortcut =
     if (caught) room.extra = true;
   }
   const target = room.mode === "team" ? room.players.filter(x => x.team === player.team).reduce((n,x)=>n+x.finished,0) : player.finished;
-  if (target >= (room.mode === "team" ? room.players.filter(x=>x.team===player.team).length * 4 : 4)) { room.status = "finished"; room.winner = room.mode === "team" ? player.team : room.players.findIndex(x=>x.id===player.id); return; }
+  if (target >= (room.mode === "team" ? room.players.filter(x=>x.team===player.team).length * 4 : 4)) { room.status = "finished"; room.winner = room.mode === "team" ? player.team : room.players.findIndex(x=>x.id===player.id); room.winnerName=room.mode==="team"?room.players.filter(x=>x.team===player.team).map(x=>x.name).join(" · "):player.name; return; }
   // 턴과 추가 던지기 처리는 서버가 누적 결과를 모두 고려해 결정한다.
 }
