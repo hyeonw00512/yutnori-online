@@ -18,7 +18,9 @@ const clearTurnTimeout=(r:Room,playerId?:string)=>{const id=playerId??current(r)
 // a mobile double-tap cannot spend a Yut/Mo extra throw before it is shown.
 const rollLocks=new Map<string,number>();
 const ROLL_LOCK_MS=3400;
-const nextTurn=(r:Room)=>{clearMoveTimeout(r);clearTurnTimeout(r);r.turn=(r.turn+1)%r.players.length;const next=current(r);if(next)record(r,"system",`${next.name} 님 차례입니다.`,next.team);scheduleRollTimeout(r)};
+// 낙은 굴림 결과를 충분히 본 뒤에만 다음 차례로 넘긴다.
+const finishNakAnimation=(r:Room,actorId:string)=>{r.resolving=true;setTimeout(()=>{if(r.status!=="playing"||!r.resolving||current(r)?.id!==actorId)return;r.resolving=false;r.lastRoll=undefined;nextTurn(r);publish(r);scheduleAuto(r)},ROLL_ANIMATION_MS)};
+const nextTurn=(r:Room)=>{if(r.lastRoll?.result==="NAK"&&!r.resolving)return finishNakAnimation(r,current(r)?.id??"");clearMoveTimeout(r);clearTurnTimeout(r);r.turn=(r.turn+1)%r.players.length;const next=current(r);if(next)record(r,"system",`${next.name} 님 차례입니다.`,next.team);scheduleRollTimeout(r)};
 // 종료 후 준비 완료한 사람만 다음 판의 플레이어로 남긴다. 준비하지 않은
 // 기존 플레이어는 방을 나가지 않아도 관전자 자리에서 다음 판을 볼 수 있다.
 const startReadyRematch=(r:Room)=>{const readyIds=new Set((r.rematchVotes??[]).filter(id=>r.players.some(player=>player.id===id&&player.connected)));const ready=r.players.filter(player=>readyIds.has(player.id)),hostIsPlayer=r.players.some(player=>player.id===r.hostId);if(hostIsPlayer&&!readyIds.has(r.hostId))throw new Error("플레이어인 방장은 준비 완료한 뒤 게임을 시작할 수 있습니다.");if(ready.length<2)throw new Error("준비 완료한 플레이어가 2명 이상 필요합니다.");if(r.mode==="team"&&![0,1].every(team=>ready.some(player=>player.team===team)))throw new Error("팀전은 준비 완료 인원에 두 팀이 모두 있어야 합니다.");const waiting=r.players.filter(player=>!readyIds.has(player.id));waiting.forEach(player=>{if(!r.spectators.some(observer=>observer.id===player.id))r.spectators.push({id:player.id,name:player.name,connected:player.connected});const session=sessions.get(player.id);if(session)session.role="spectator"});r.players=ready;r.rematchVotes=[];restartRound(r);const first=current(r);if(first)record(r,"system",`${first.name} 님 차례입니다.`,first.team);scheduleRollTimeout(r)};
