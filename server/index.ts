@@ -1,5 +1,6 @@
 import express from "express"; import path from "node:path"; import { createServer } from "node:http"; import { Server } from "socket.io"; import { createPieces, current, move, previewMove, restartRound, roll, type Room } from "./game";
 const app=express(), http=createServer(app), io=new Server(http,{cors:{origin:true}}); app.get("/health",(_,r)=>r.json({ok:true}));
+app.get("/api/platform/rooms",(_,response)=>response.json({version:1,gameId:"moon-yut",updatedAt:new Date().toISOString(),capabilities:{canSpectate:true,canReserveNextRound:false},rooms:[...rooms.values()].filter(room=>!room.practice).map(room=>({roomCode:room.code,hostNickname:room.players.find(player=>player.id===room.hostId)?.name||"알 수 없음",playerCount:room.players.length,maxPlayers:8,spectatorCount:room.spectators.length,status:room.status==="lobby"?"WAITING":room.status==="playing"?"PLAYING":"FINISHED",requiresPassword:false,canJoin:room.status==="lobby"&&room.players.length<8,canSpectate:true,canReserveNextRound:false,joinUrl:`https://yutnori-online-71vm.onrender.com/?room=${room.code}`}))}));
 // Render에서는 이 서버가 Vite가 만든 화면과 WebSocket을 같은 주소에서 제공한다.
 app.use(express.static(path.resolve("dist"))); app.get(/.*/,(_,r)=>r.sendFile(path.resolve("dist/index.html")));
 const rooms=new Map<string,Room>(); const sessions=new Map<string,{room:string;player:string;role:"player"|"spectator"}>();
