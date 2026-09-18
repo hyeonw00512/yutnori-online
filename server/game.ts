@@ -55,7 +55,7 @@ const backward = (pos: number, route?: "a" | "b") => {
   return pos - 1;
 };
 const travel = (pos: number, steps: number, route?: "a" | "b") => { let at = pos, activeRoute = route; for (let i = 0; i < Math.abs(steps); i++) { at = steps > 0 ? forward(at, activeRoute) : backward(at, activeRoute); if (at === 99) activeRoute = undefined; if (at === 99) break; } return { to: at, route: activeRoute }; };
-export function previewMove(room: Room, pieceId: string, result: Result, takeShortcut = false) { const p=room.pieces.find(x=>x.id===pieceId); if(!p)throw new Error("이동할 수 없는 말입니다."); const steps=STEPS[result]; if(!steps)throw new Error("낙은 말을 이동하지 않습니다."); if(takeShortcut&&(steps<1||![5,10,22].includes(p.pos)))throw new Error("이 위치에서는 지름길을 선택할 수 없습니다."); let route=p.route;if(steps>0&&takeShortcut)route=p.pos===5?"a":"b";if(steps>0&&p.pos===22)route=takeShortcut?"b":"a";return travel(p.pos,steps,route); }
+export function previewMove(room: Room, pieceId: string, result: Result, takeShortcut = false) { const p=room.pieces.find(x=>x.id===pieceId); if(!p)throw new Error("이동할 수 없는 말입니다."); const steps=STEPS[result]; if(!steps)throw new Error("낙은 말을 이동하지 않습니다."); if(takeShortcut&&(steps<1||![5,10,22].includes(p.pos)))throw new Error("이 위치에서는 지름길을 선택할 수 없습니다."); let route=p.route;if(steps>0&&takeShortcut)route=p.pos===5?"a":"b";if(steps>0&&p.pos===22)route=takeShortcut?"b":route??"a";return travel(p.pos,steps,route); }
 export function move(room: Room, pieceId: string, result: Result, takeShortcut = false, stackWithId?: string) {
   const player = current(room); const p = room.pieces.find(x => x.id === pieceId);
   if (!p || p.owner !== player.id || p.finished || p.carriedBy) throw new Error("이동할 수 없는 말입니다.");
