@@ -151,3 +151,23 @@ body{background:radial-gradient(circle at 50% 0,#fff9e9 0,#ead4a7 66%,#bd8250 15
 @media(min-width:761px){
   .play>div:first-child>.board{aspect-ratio:1 / 1!important;height:auto!important;align-self:start!important}
 }
+
+/* PC 오른쪽 정보 영역: 채팅과 진행 기록을 한 패널의 탭으로 통합한다. */
+.desktop-info-panel{display:flex!important;min-height:0!important;height:100%!important;padding:0!important;flex-direction:column!important;overflow:hidden!important;border:2px solid #9b6338!important;border-radius:12px!important;background:linear-gradient(#fff9e9,#eed39a)!important;box-shadow:0 3px 8px #55301d44!important}
+.desktop-info-panel>nav{display:grid!important;grid-template-columns:1fr 1fr!important;flex:0 0 auto!important;border-bottom:1px solid #c49359!important;background:#f7e4b6!important}
+.desktop-info-panel>nav button{padding:11px 8px!important;border:0!important;border-radius:0!important;background:transparent!important;color:#765037!important;font-size:14px!important;font-weight:900!important;box-shadow:none!important}
+.desktop-info-panel>nav button.active{color:#8e3c24!important;box-shadow:inset 0 -3px #c95330!important}
+.desktop-info-panel .chat-panel,.desktop-info-panel .activity-panel{display:flex!important;min-height:0!important;height:auto!important;max-height:none!important;flex:1 1 auto!important;margin:0!important;padding:11px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.desktop-info-panel .chat-heading,.desktop-info-panel .activity-heading{display:none!important}
+.desktop-info-panel .messages,.desktop-info-panel .activity-list{min-height:0!important;max-height:none!important;flex:1 1 auto!important}
+.desktop-info-panel .chat-panel form{flex:0 0 auto!important;margin-top:8px!important}
+@media(max-width:760px){.desktop-info-panel{display:none!important}}
+
+/* 모바일도 하나의 정보 창 안에서 채팅과 기록을 탭으로 전환한다. */
+@media(max-width:760px){
+  .mobile-info-tools>button{max-width:180px!important;margin-left:auto!important}
+  .mobile-info-tabs{display:grid!important;grid-template-columns:1fr 1fr auto!important;gap:5px!important;align-items:center!important;margin:0 0 8px!important;border-bottom:1px solid #c49359!important}
+  .mobile-info-tabs>button:not(.mobile-info-close){padding:8px 6px!important;border:0!important;border-radius:7px 7px 0 0!important;background:transparent!important;color:#79533b!important;font-size:13px!important;font-weight:900!important;box-shadow:none!important}
+  .mobile-info-tabs>button.active{color:#963f26!important;box-shadow:inset 0 -3px #c95330!important}
+  .mobile-info-tabs .mobile-info-close{margin:0!important;white-space:nowrap!important}
+}
