@@ -12,8 +12,8 @@ const moveTimers=new Map<string,ReturnType<typeof setTimeout>>();
 const turnTimers=new Map<string,ReturnType<typeof setTimeout>>();
 const MOVE_TIMEOUT_MS=15000,ROLL_ANIMATION_MS=3200;
 const moveTimerKey=(r:Room,playerId:string)=>`${r.code}:${playerId}`;
-const clearMoveTimeout=(r:Room,playerId?:string)=>{const id=playerId??current(r)?.id;if(!id)return;const key=moveTimerKey(r,id),timer=moveTimers.get(key);if(timer){clearTimeout(timer);moveTimers.delete(key)}r.actionDeadline=undefined};
-const clearTurnTimeout=(r:Room,playerId?:string)=>{const id=playerId??current(r)?.id;if(!id)return;const key=moveTimerKey(r,id),timer=turnTimers.get(key);if(timer){clearTimeout(timer);turnTimers.delete(key)}r.actionDeadline=undefined};
+const clearMoveTimeout=(r:Room,playerId?:string)=>{const id=playerId??current(r)?.id;if(!id)return;const key=moveTimerKey(r,id),timer=moveTimers.get(key);if(timer){clearTimeout(timer);moveTimers.delete(key)}r.actionDeadline=undefined;r.actionDuration=undefined};
+const clearTurnTimeout=(r:Room,playerId?:string)=>{const id=playerId??current(r)?.id;if(!id)return;const key=moveTimerKey(r,id),timer=turnTimers.get(key);if(timer){clearTimeout(timer);turnTimers.delete(key)}r.actionDeadline=undefined;r.actionDuration=undefined};
 // The animation lasts 3.2 seconds.  This server-side lock is authoritative so
 // a mobile double-tap cannot spend a Yut/Mo extra throw before it is shown.
 const rollLocks=new Map<string,number>();

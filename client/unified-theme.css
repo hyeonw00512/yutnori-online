@@ -171,3 +171,12 @@ body{background:radial-gradient(circle at 50% 0,#fff9e9 0,#ead4a7 66%,#bd8250 15
   .mobile-info-tabs>button.active{color:#963f26!important;box-shadow:inset 0 -3px #c95330!important}
   .mobile-info-tabs .mobile-info-close{margin:0!important;white-space:nowrap!important}
 }
+
+/* 통합 패널은 오른쪽 레일 전체 높이를 사용해 기록과 채팅을 아래까지 보여 준다. */
+@media(min-width:761px){
+  .play>.right-rail{display:flex!important;min-height:0!important;align-self:stretch!important}
+  .desktop-info-panel{height:auto!important;min-height:100%!important;flex:1 1 auto!important}
+  .desktop-info-panel>nav{grid-template-columns:1fr 1fr auto!important}
+  .desktop-info-panel>nav .chat-power{padding:7px 8px!important;margin:5px!important;border:1px solid #a96b3b!important;border-radius:7px!important;background:#fff3d0!important;color:#7c4328!important;font-size:10px!important;box-shadow:none!important}
+  .desktop-info-panel>nav .chat-power:hover{background:#f5d891!important}
+}
