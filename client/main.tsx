@@ -1,4 +1,10 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { io } from "socket.io-client";
@@ -16,85 +22,1768 @@ import "./clean-theme.css";
 import "./classic-board-theme.css";
 import "./unified-theme.css";
 import { YutThree } from "./YutThree";
-const socket=io(); const labels:Record<Result,string>={DO:"도",GAE:"개",GEOL:"걸",YUT:"윷",MO:"모",BACKDO:"빽도",NAK:"낙"};
-let soundContext:AudioContext|undefined;
-let effectsOn=true,effectsVolume=.52,localActionDeadline=0;
-const tone=(frequency:number,seconds=.12,delay=0)=>{if(!effectsOn||effectsVolume<=0)return;try{const context=soundContext??=new AudioContext(),oscillator=context.createOscillator(),gain=context.createGain();oscillator.frequency.value=frequency;gain.gain.setValueAtTime(.0001,context.currentTime+delay);gain.gain.exponentialRampToValueAtTime(.07*effectsVolume,context.currentTime+delay+.01);gain.gain.exponentialRampToValueAtTime(.0001,context.currentTime+delay+seconds);oscillator.connect(gain).connect(context.destination);oscillator.start(context.currentTime+delay);oscillator.stop(context.currentTime+delay+seconds+.02)}catch{}};
-const rollSound=()=>[155,205,175,230].forEach((value,index)=>tone(value,.09,index*.12));
-const turnSound=()=>{tone(660,.1);tone(880,.15,.13)};
-const victorySound=()=>[523,659,784,1046].forEach((value,index)=>tone(value,.18,index*.14));
-const playAsset=(source:string,volume=.7)=>{if(!effectsOn||effectsVolume<=0)return;try{const audio=new Audio(source);audio.preload="auto";audio.volume=Math.min(1,volume*effectsVolume);void audio.play().catch(()=>{})}catch{}};
-const resultAudio:Record<Result,string>={DO:"/sounds/Do.wav",GAE:"/sounds/Gae.wav",GEOL:"/sounds/Geol.wav",YUT:"/sounds/Yut.wav",MO:"/sounds/Mo.wav",BACKDO:"/sounds/Backdo.wav",NAK:"/sounds/Nak.wav"};
-const playResultSound=(result:Result)=>playAsset(resultAudio[result],.82);
-const landingSound=()=>playAsset("/sounds/yut-landing.wav",.38);
-const speak=(text:string)=>{try{window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang="ko-KR";utterance.rate=.92;window.speechSynthesis.speak(utterance)}catch{}};
-const enableSound=()=>{try{const context=soundContext??=new AudioContext();void context.resume()}catch{}};
-type Chat={name:string;playerId?:string;text:string;at:number};
-type MoveFx={id:string;owner:string;from:number;to:number;at:number};
-const playerColor=(room:Room,playerId:string)=>room.mode==="solo"?Math.max(0,room.players.findIndex(player=>player.id===playerId)):room.players.find(player=>player.id===playerId)?.team??0;
-const codeFromInput=(value:string)=>{const raw=value.trim();try{const url=new URL(raw),entry=[...url.searchParams.entries()].find(([key])=>key.toLowerCase()==="room"||key.toLowerCase()==="code");return (entry?.[1]??raw).trim().toUpperCase()}catch{return raw.toUpperCase()}};
-function PieceFlight({fx,room,locations}:{fx?:MoveFx;room:Room;locations:[number,number][]}){const [at,setAt]=useState<[number,number]>();useEffect(()=>{if(!fx)return;const from=fx.from<0?0:fx.from,to=fx.to===99?0:fx.to;setAt(locations[from]??locations[0]);const frame=requestAnimationFrame(()=>setAt(locations[to]??locations[0]));const timer=window.setTimeout(()=>setAt(undefined),820);return()=>{cancelAnimationFrame(frame);window.clearTimeout(timer)}},[fx?.at]);if(!fx||!at)return null;const color=playerColor(room,fx.owner);return <div className={`piece-flight t${color}`} style={{left:`${at[0]}%`,top:`${at[1]}%`}}><span>{room.players.find(p=>p.id===fx.owner)?.name.slice(0,2)}</span></div>}
-function BgmToggle(){const [open,setOpen]=useState(false),[bgmOn,setBgmOn]=useState(false),[bgmVolume,setBgmVolume]=useState(.22),[fxOn,setFxOn]=useState(effectsOn),[fxVolume,setFxVolume]=useState(effectsVolume);const [host,setHost]=useState<HTMLElement>();const audio=useRef<HTMLAudioElement|undefined>(undefined);useEffect(()=>{const rules=document.querySelector<HTMLElement>(".rules-button");if(!rules)return;const slot=document.createElement("span");slot.className="header-bgm-slot";rules.insertAdjacentElement("afterend",slot);setHost(slot);return()=>slot.remove()},[]);useEffect(()=>{const element=new Audio("/sounds/Yutnori_BGM.wav");element.loop=true;element.volume=bgmVolume;element.preload="auto";audio.current=element;return()=>{element.pause();element.src=""}},[]);const toggleBgm=()=>{enableSound();const element=audio.current;if(!element)return;if(element.paused){void element.play().then(()=>setBgmOn(true)).catch(()=>setBgmOn(false))}else{element.pause();setBgmOn(false)}};const changeBgm=(value:number)=>{setBgmVolume(value);if(audio.current)audio.current.volume=value};const changeFx=(value:number)=>{effectsVolume=value;setFxVolume(value)};const toggleFx=()=>{effectsOn=!fxOn;setFxOn(effectsOn)};const content=<span className="sound-settings"><button type="button" className="bgm-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open}>🔊 소리 설정</button>{open&&<section className="sound-menu"><div><b>BGM</b><button onClick={toggleBgm}>{bgmOn?"끄기":"켜기"}</button></div><input aria-label="BGM 볼륨" type="range" min="0" max="0.5" step="0.01" value={bgmVolume} onChange={event=>changeBgm(Number(event.target.value))}/><small>볼륨 {Math.round(bgmVolume*100)}%</small><div><b>효과음</b><button onClick={toggleFx}>{fxOn?"끄기":"켜기"}</button></div><input aria-label="효과음 볼륨" type="range" min="0" max="1" step="0.01" value={fxVolume} disabled={!fxOn} onChange={event=>changeFx(Number(event.target.value))}/><small>볼륨 {Math.round(fxVolume*100)}%</small></section>}</span>;return host?createPortal(content,host):null}
-function StickRoll({data}:{data?:{result:Result;sticks:boolean[];rollId:number}}){return <div className={`sticks three-roll ${data?.result==="NAK"?"nak":""} ${data?.result==="BACKDO"?"backdo":""}`}><div className="throw-zone"><span>윷 던지기</span><div className="side-legend"><b><i className="legend-front"/>앞면</b><b><i className="legend-back"/>뒷면</b></div><YutThree data={data}/></div>{data&&<b key={data.rollId} className="result-pop">{labels[data.result]}<small>{data.result==="NAK"?"판 밖으로 떨어졌어요":data.result==="BACKDO"?"한 칸 뒤로 이동":""}</small></b>}<BgmToggle/></div>}
-function PieceStatus({room,turnId}:{room:Room;turnId?:string}){return <section className="piece-status" aria-label="말 현황">{room.players.map(p=>{const mine=room.pieces.filter(x=>x.owner===p.id),color=playerColor(room,p.id),active=p.id===turnId;return <div key={p.id} className={active?"active":""}><i className={`dot t${color}`}/><b>{p.name}</b>{active&&<em className="turn-badge">차례</em>}<span className="mini-pieces">{mine.map((piece,n)=><i key={piece.id} className={`mini-piece t${color} ${piece.finished?"finished":piece.pos!==-1?"on-board":""}`} title={`${n+1}번 말`}>{n+1}</i>)}</span></div>})}</section>}
-function ChatPanel({chats,text,setText,me,open,onToggle}:{chats:Chat[];text:string;setText:(value:string)=>void;me:string;open:boolean;onToggle:()=>void}){return <aside className={`chat-panel ${open?"open":"closed"}`}><div className="chat-heading"><h3>채팅</h3><button type="button" className="chat-toggle" onClick={onToggle} aria-expanded={open}>{open?"끄기":"켜기"}</button></div>{open&&<><div className="messages">{[...chats].reverse().map((c,i)=><p key={`${c.at}-${i}`}><time>{new Date(c.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}</time><b>{c.name}{c.playerId===me?" (나)":""}</b> {c.text}</p>)}</div><form onSubmit={e=>{e.preventDefault();if(text.trim()){socket.emit("chat",{text});setText("")}}}><input value={text} onChange={e=>setText(e.target.value)} placeholder="메시지 입력"/><button>전송</button></form></>}</aside>}
-function ActivityPanel({events,open,onToggle}:{events?:Room["events"];open:boolean;onToggle:()=>void}){const [clock,setClock]=useState(0);const lastRoll=[...(events??[])].filter(event=>event.kind==="roll").at(-1);useEffect(()=>{if(!lastRoll)return;const remaining=3200-(Date.now()-lastRoll.at);if(remaining<=0){setClock(Date.now());return}setClock(0);const timer=window.setTimeout(()=>setClock(Date.now()),remaining);return()=>window.clearTimeout(timer)},[lastRoll?.id]);const lastRollVisible=!lastRoll||clock>0&&Date.now()-lastRoll.at>=3200;const recent=[...(events??[])].filter(event=>event.kind!=="roll"||event.id!==lastRoll?.id||lastRollVisible).sort((a,b)=>b.at-a.at||b.id-a.id).slice(0,12);return <section className={`activity-panel ${open?"open":"closed"}`}><div className="activity-heading"><h3>진행 기록</h3><button type="button" onClick={onToggle} aria-expanded={open}>{open?"접기":"열기"}</button></div>{open&&(recent.length?<div className="activity-list">{recent.map(event=><p key={event.id}><time>{new Date(event.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}</time>{event.text}</p>)}</div>:<p className="activity-empty">게임을 시작하면 기록이 표시됩니다.</p>)}</section>}
-function MobileInfoTools({active,setActive,events,chats,text,setText,me}:{active:"activity"|"chat"|null;setActive:(value:"activity"|"chat"|null)=>void;events?:Room["events"];chats:Chat[];text:string;setText:(value:string)=>void;me:string}){return <section className="mobile-info-tools"><button type="button" onClick={()=>setActive("chat")}>💬 채팅 · 기록</button>{active&&<div className="mobile-info-backdrop" role="presentation" onClick={()=>setActive(null)}><section className="mobile-info-drawer" role="dialog" aria-modal="true" aria-label={active==="activity"?"진행 기록":"채팅"} onClick={event=>event.stopPropagation()}><div className="mobile-info-tabs"><button className={active==="chat"?"active":""} onClick={()=>setActive("chat")}>채팅</button><button className={active==="activity"?"active":""} onClick={()=>setActive("activity")}>기록</button><button type="button" className="mobile-info-close" onClick={()=>setActive(null)}>닫기 ×</button></div>{active==="activity"?<ActivityPanel events={events} open={true} onToggle={()=>setActive(null)}/>:<ChatPanel chats={chats} text={text} setText={setText} me={me} open={true} onToggle={()=>setActive(null)}/>}</section></div>}</section>}
-function DesktopInfoPanel({events,chats,text,setText,me}:{events?:Room["events"];chats:Chat[];text:string;setText:(value:string)=>void;me:string}){const [tab,setTab]=useState<"chat"|"activity">("chat"),[chatOn,setChatOn]=useState(true);const showChat=()=>{setChatOn(true);setTab("chat")};const toggleChat=()=>{setChatOn(on=>{if(on)setTab("activity");else setTab("chat");return !on})};return <aside className={`desktop-info-panel ${chatOn?"chat-on":"chat-off"}`}><nav><button className={tab==="chat"&&chatOn?"active":""} onClick={showChat}>채팅</button><button className={tab==="activity"?"active":""} onClick={()=>setTab("activity")}>기록</button><button className="chat-power" onClick={toggleChat}>{chatOn?"채팅 끄기":"채팅 켜기"}</button></nav>{tab==="chat"&&chatOn?<ChatPanel chats={chats} text={text} setText={setText} me={me} open={true} onToggle={toggleChat}/>:<ActivityPanel events={events} open={true} onToggle={()=>{}}/>}</aside>}
-function FinishLobby({room,me,isSpectator,joinTeam,winnerText,action,onNewRoom}:{room:Room;me:string;isSpectator:boolean;joinTeam:0|1;winnerText?:string;action:(event:string,data?:object)=>void;onNewRoom:()=>void}){const requested=room.rematchVotes??[],ready=room.players.filter(player=>requested.includes(player.id)&&player.connected).map(player=>player.id),voted=ready.includes(me),isHost=room.hostId===me;return <section className="finish-lobby"><span>🏆 GAME OVER</span><strong>{winnerText} 승리!</strong><small>다음 게임 참가자를 정해 주세요.</small><div className="role-switch"><b>{isSpectator?"현재 관전 중입니다":"현재 플레이어입니다"}</b><button onClick={()=>action("changeRole",{role:isSpectator?"player":"spectator",team:joinTeam})}>{isSpectator?"플레이어로 참여":"관전으로 전환"}</button><small>다음 게임을 시작하기 전까지 언제든 바꿀 수 있어요.</small></div>{room.mode==="team"&&!isSpectator&&<div className="team-picker"><b>다음 게임 팀 선택</b><div className="team-options">{([0,1] as const).map(team=><button key={team} className={`team-option t${team} ${room.players.find(player=>player.id===me)?.team===team?"chosen":""}`} onClick={()=>action("selectTeam",{team})}><strong>{team===0?"주황팀":"파랑팀"} <small>{room.players.filter(player=>player.team===team).length}/4</small></strong><span>{room.players.filter(player=>player.team===team).map(player=>player.name).join(" · ")||"아직 없음"}</span></button>)}</div></div>}<section className="ready-roster"><b>다음 게임 준비 현황 · {ready.length}명</b>{room.players.map(player=><p key={player.id} className={ready.includes(player.id)?"ready":"waiting"}><i/>{player.name}{player.id===me?" (나)":""}<em>{!player.connected?"연결 대기":ready.includes(player.id)?"준비 완료":"대기 중"}</em></p>)}</section>{!isSpectator&&<button className="ready-button" disabled={voted} onClick={()=>action("rematchVote")}>{voted?"준비 완료":"다음 게임 준비"}</button>}{isHost&&<div className="host-rematch"><b>방장: 준비 완료한 인원만 다음 게임에 참가합니다.</b>{room.mode==="team"&&<button className="team-shuffle" onClick={()=>action("shuffleTeams")}>팀 자동 섞기</button>}<button className="start-ready" onClick={()=>action("startReadyRematch")}>준비 완료 인원으로 게임 시작</button></div>}{!isHost&&<small className="host-wait">방장이 준비 인원을 확인한 뒤 게임을 시작합니다.</small>}<button className="new-room" onClick={onNewRoom}>새 방 만들기</button></section>}
-function Board({room,me,onMove,pendingIndex=0,rolling,fx,overlay}:{room:Room;me:string;onMove:(id:string,takeShortcut?:boolean,resultIndex?:number)=>void;pendingIndex?:number;rolling:boolean;fx?:MoveFx;overlay?:React.ReactNode}){
- const [routePiece,setRoutePiece]=useState<string>();
- const cells=Array.from({length:29},(_,i)=>i);
- // 시작점이 오른쪽 아래가 되도록 윷판 전체를 좌우 대칭으로 배치한다.
- const locations:[number,number][]=[[92,92],[92,75],[92,58],[92,41],[92,24],[92,8],[75,8],[58,8],[41,8],[24,8],[8,8],[8,25],[8,42],[8,59],[8,76],[8,92],[25,92],[42,92],[59,92],[76,92],[75,25],[62,38],[50,50],[38,62],[25,75],[25,25],[38,38],[62,62],[75,75]];
- const canMove=!rolling&&room.pending.length>0&&room.extraThrows===0&&room.players[room.turn]?.id===me;
- const amount=({DO:1,GAE:2,GEOL:3,YUT:4,MO:5,BACKDO:-1,NAK:0} as const)[room.pending[pendingIndex] ?? "NAK"];
- const forward=(p:number,route?:"a"|"b")=>p===-1?1:p===19||p===28?0:p===0?99:p===5?(route==="a"?20:6):p===10?(route==="b"?25:11):p===20?21:p===21?22:p===22?(route==="b"?27:23):p===23?24:p===24?15:p===25?26:p===26?22:p===27?28:p+1;
- const backward=(p:number,route?:"a"|"b")=>p===-1?-1:p===0?(route==="b"?28:19):p===1?0:p===15&&route==="a"?24:p===20?5:p===21?20:p===22?21:p===23?22:p===24?23:p===25?10:p===26?25:p===27?22:p-1;
- const target=(pos:number,shortcut=false,route?:"a"|"b")=>{let at=pos,activeRoute=route;if(amount>0&&shortcut)activeRoute=pos===5?"a":"b";if(amount>0&&pos===22)activeRoute=shortcut?"b":"a";for(let i=0;i<Math.abs(amount);i++){at=amount>0?forward(at,activeRoute):backward(at,activeRoute);if(at===99)activeRoute=undefined;if(at===99)break}return at};
- const waitingPieces=room.pieces.filter(p=>p.owner===me&&p.pos===-1&&!p.finished).sort((a,b)=>a.id.localeCompare(b.id,undefined,{numeric:true}));
- const nextWaiting=waitingPieces[0];
- // 대기 말은 다음 번호 하나만 후보로 둔다. 첫 이동은 1번, 이후에는 판 위 말과 다음 대기 말을 고를 수 있다.
- // 업힌 말은 대표 말을 따라갈 뿐, 독립 이동 후보로 만들지 않는다.
- // 빽도는 아직 출발하지 않은 말을 선택할 수 없고, 판 위에 있는 말만 목적지가 빛난다.
- const movable=room.pieces.filter(p=>canMove&&p.owner===me&&!p.finished&&!p.carriedBy&&(amount<0?p.pos!==-1:(p.pos!==-1||p.id===nextWaiting?.id)));
- const normalMoves=movable.map(piece=>({piece,to:target(piece.pos,false,piece.route)}));
- const shortcutMoves=movable.filter(p=>amount>0&&[5,10,22].includes(p.pos)).map(piece=>({piece,to:target(piece.pos,true,piece.route)}));
- const targets=new Set(normalMoves.map(x=>x.to===-1?0:x.to));
- const shortcutTargets=new Set(shortcutMoves.map(x=>x.to===-1?0:x.to));
- const finishMove=shortcutMoves.find(move=>move.to===99)??normalMoves.find(move=>move.to===99);
- const pieceNumber=(id:string)=>Number(id.slice(id.lastIndexOf("-")+1))+1;
- const routePos=room.pieces.find(p=>p.id===routePiece)?.pos;
- return <div className={`board ${shortcutMoves.length?"shortcut-available":""}`}><span className="corner-label top-left">지름길</span><span className="corner-label top-right">지름길</span>{cells.map(n=>{const [x,y]=locations[n];const ps=room.pieces.filter(p=>p.pos===n&&!p.finished);const visible=ps.filter(p=>!p.carriedBy);const lit=targets.has(n),shortcutLit=shortcutTargets.has(n);const normal=normalMoves.find(x=>(x.to===-1?0:x.to)===n),shortcut=shortcutMoves.find(x=>(x.to===-1?0:x.to)===n);const moveToHere=()=>{const selected=shortcut??normal;if(selected)onMove(selected.piece.id,!!shortcut,pendingIndex)};const offsets=[[-8,-8],[8,-8],[-8,8],[8,8]];return <div key={n} role={normal||shortcut?"button":undefined} tabIndex={normal||shortcut?0:undefined} onClick={moveToHere} onKeyDown={e=>{if((e.key==="Enter"||e.key===" ")&&(normal||shortcut)){e.preventDefault();moveToHere()}}} className={`cell ${[5,10,15].includes(n)?"corner":""} ${lit?"target":""} ${shortcutLit?"shortcut-target":""} ${normal||shortcut?"destination":""} ${visible.length>1?"multi-piece-cell":""}`} style={{left:`${x}%`,top:`${y}%`}}>{visible.map((p,index)=>{const owner=room.players.find(x=>x.id===p.owner),count=p.stackedWith.length+1,offset=offsets[index%offsets.length],color=owner?playerColor(room,owner.id):0;return <button key={p.id} title={`${owner?.name ?? "플레이어"}의 ${pieceNumber(p.id)}번 말${count>1?` · 업기 ×${count}`:""}`} onClick={e=>e.stopPropagation()} tabIndex={-1} className={`piece t${color}`} style={visible.length>1?{transform:`translate(calc(-50% + ${offset[0]}px), calc(-50% + ${offset[1]}px)) scale(.76)`}:undefined}><span className="piece-name">{owner?.name.slice(0,3)}</span>{count>1&&<b className="stack-count">×{count}</b>}</button>})}</div>})}{routePiece&&<div className="route-choice"><b>{routePos===22?"중앙에서 어느 길로 갈까요?":"어느 길로 갈까요?"}</b><div><button onClick={()=>{onMove(routePiece,false,pendingIndex);setRoutePiece(undefined)}}>{routePos===22?"왼쪽 아래 길":"바깥길"}</button><button onClick={()=>{onMove(routePiece,true,pendingIndex);setRoutePiece(undefined)}}>{routePos===22?"오른쪽 아래 길":"지름길"}</button></div><small>선택한 말만 이동합니다.</small></div>}{overlay}<PieceFlight fx={fx} room={room} locations={locations}/>{finishMove&&<button className="finish target-finish" onClick={()=>onMove(finishMove.piece.id,finishMove===shortcutMoves.find(move=>move.to===99),pendingIndex)}>완주!</button>}<span className="start">출발 · 완주</span></div>}
-function App(){const [name,setName]=useState(localStorage.yutName||"");const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get("room")??"");const [mode,setMode]=useState<"solo"|"team">("team");const [joinTeam,setJoinTeam]=useState<0|1>(0);const [room,setRoom]=useState<Room>();const [me,setMe]=useState("");const [notice,setNotice]=useState("");const [chats,setChats]=useState<Chat[]>([]);const [text,setText]=useState("");const [chatOpen,setChatOpen]=useState(()=>typeof window==="undefined"?true:window.innerWidth>1000&&window.screen.width>760);const [activityOpen,setActivityOpen]=useState(true);const [mobileInfo,setMobileInfo]=useState<"activity"|"chat"|null>(null);const [connection,setConnection]=useState<"connected"|"reconnecting">(socket.connected?"connected":"reconnecting");const [rulesOpen,setRulesOpen]=useState(false);const [selectedPending,setSelectedPendingState]=useState(0);const setSelectedPending=(value:React.SetStateAction<number>)=>{setSelectedPendingState(value);if(typeof value==="number")socket.emit("selectMoveResult",{resultIndex:value},(response:{ok:boolean;error?:string})=>{if(!response?.ok)setNotice(response?.error??"이동력 선택을 처리하지 못했습니다.")})};const [rolling,setRolling]=useState(false);const [clock,setClock]=useState(Date.now());const completedRoll=useRef<number|undefined>(undefined);const announcedTurn=useRef<string|undefined>(undefined);const announcedFinish=useRef<string|undefined>(undefined);const [captureFx,setCaptureFx]=useState<{by:string;count:number;at:number}>();const [moveFx,setMoveFx]=useState<MoveFx>();
- useEffect(()=>{const receive=(r:Room)=>{setRoom(r);if(socket.id)setMe(socket.id);const participant=r.players.find(p=>p.id===socket.id)??r.spectators?.find(observer=>observer.id===socket.id);if(participant&&socket.id)localStorage.yutSession=JSON.stringify({code:r.code,playerId:socket.id})};const receiveMove=(fx:MoveFx)=>setMoveFx(fx);const restore=()=>{const saved=localStorage.yutSession;if(!saved){setConnection("connected");return}try{const session=JSON.parse(saved);setConnection("reconnecting");socket.emit("reconnectRoom",session,(result:{ok:boolean})=>{if(!result?.ok)localStorage.removeItem("yutSession");setConnection("connected")})}catch{localStorage.removeItem("yutSession");setConnection("connected")}};const onConnect=()=>restore(),onDisconnect=()=>setConnection("reconnecting");socket.on("room",receive);socket.on("chat",(c:Chat)=>setChats(v=>[...v.slice(-49),c]));socket.on("pieceMove",receiveMove);socket.on("connect",onConnect);socket.on("disconnect",onDisconnect);if(socket.connected)restore();return()=>{socket.off("room",receive);socket.off("chat");socket.off("pieceMove",receiveMove);socket.off("connect",onConnect);socket.off("disconnect",onDisconnect)}},[]);
- useEffect(()=>{const invite=new URLSearchParams(window.location.search).get("room");if(!invite)return;const validate=()=>socket.emit("checkRoom",{code:codeFromInput(invite)},(result:{ok:boolean})=>{if(result?.ok)return;const url=new URL(window.location.href);url.searchParams.delete("room");window.history.replaceState({},"",`${url.pathname}${url.search}${url.hash}`);setCode("");setNotice("초대 방이 없거나 더 이상 입장할 수 없습니다. 대기실로 돌아왔습니다.")});if(socket.connected)validate();else socket.once("connect",validate);return()=>{socket.off("connect",validate)}},[]);
- // 서버 결과가 도착해도 화면을 그리기 전에 잠금 처리한다. 굴림 중에는 목적지 빛·이동 결과 선택이 절대 보이지 않는다.
- useLayoutEffect(()=>{const rollId=room?.lastRoll?.rollId;if(!rollId||completedRoll.current===rollId)return;completedRoll.current=rollId;rollSound();setRolling(true);const result=room.lastRoll?.result;const resultTimer=window.setTimeout(()=>{if(result){landingSound();playResultSound(result)}},2550);const finishTimer=window.setTimeout(()=>setRolling(false),3200);return()=>{window.clearTimeout(resultTimer);window.clearTimeout(finishTimer)}},[room?.lastRoll?.rollId]);
- useEffect(()=>{const player=room?.players[room.turn],key=player&&`${room?.code}:${player.id}:${room?.status}`;if(!key||announcedTurn.current===key)return;announcedTurn.current=key;if(player.id===me&&room?.status==="playing")turnSound()},[room?.code,room?.turn,room?.status,me]);
- useEffect(()=>{const key=room?.status==="finished"?`${room.code}:${room.winner}`:undefined;if(!key||announcedFinish.current===key)return;announcedFinish.current=key;victorySound()},[room?.status,room?.winner,room?.code]);
- useEffect(()=>{const capture=room?.lastCapture;if(!capture)return;setCaptureFx(capture);const timer=window.setTimeout(()=>setCaptureFx(undefined),1800);return()=>window.clearTimeout(timer)},[room?.lastCapture?.at]);
- useEffect(()=>{if(!room?.actionDeadline){localActionDeadline=0;return}const animationLeft=room.lastRoll?Math.max(0,3200-(Date.now()-room.lastRoll.rollId)):0;localActionDeadline=Date.now()+15000+animationLeft;const update=()=>setClock(Date.now());update();const timer=window.setInterval(update,250);return()=>window.clearInterval(timer)},[room?.actionDeadline]);
- useEffect(()=>setSelectedPendingState(index=>Math.min(index,Math.max(0,(room?.pending.length??1)-1))),[room?.pending.length]);
- // A fresh roll should select the result that was just revealed. Earlier Yut/Mo
- // results remain selectable, but are never mistaken for the latest roll.
- useEffect(()=>{if(room?.lastRoll&&room.pending.length>0)setSelectedPendingState(room.pending.length-1)},[room?.lastRoll?.rollId]);
- const action=(event:string,data:object={})=>{enableSound();socket.emit(event,data,(x:{ok:boolean;error?:string})=>{if(!x?.ok)setNotice(x?.error||"처리하지 못했습니다.")})};
- if(!room)return <main className="landing"><h1>윷놀이터</h1><p>집에서도 함께 하는 실시간 윷놀이</p><input className="nickname-input" placeholder="닉네임을 입력하세요" value={name} onChange={e=>setName(e.target.value)} /><section className="create-card"><b>게임 방식 선택</b><div className="mode-picker"><button className={mode==="team"?"selected":""} onClick={()=>setMode("team")}>👥 팀전<small>친구와 팀을 이루어 플레이</small></button><button className={mode==="solo"?"selected":""} onClick={()=>setMode("solo")}>🎯 개인전<small>각자 먼저 완주하기</small></button></div><button className="create-main" onClick={()=>{if(!name.trim())return setNotice("닉네임을 입력하세요.");localStorage.yutName=name;socket.emit("create",{name,mode},(x:{ok:boolean;code?:string})=>x.ok&&setCode(x.code ?? "") )}}>새 방 만들기</button><div className="practice-row"><span>규칙을 먼저 연습하고 싶나요?</span><button className="practice" onClick={()=>{if(!name.trim())return setNotice("닉네임을 입력하세요.");localStorage.yutName=name;socket.emit("create",{name,mode:"solo",practice:true},(x:{ok:boolean;error?:string})=>{if(!x.ok)return setNotice(x.error??"연습 방을 만들지 못했습니다.");socket.emit("start",{},(started:{ok:boolean;error?:string})=>!started?.ok&&setNotice(started?.error??"게임을 시작하지 못했습니다."))})}}>혼자 연습</button></div></section><section className="join-card"><b>친구 방 입장</b><small>초대 코드 또는 초대 링크를 붙여넣으세요.</small><input placeholder="예: ABC12 또는 초대 링크" value={code} onChange={e=>setCode(e.target.value)}/><div className="entry-team"><button className={`team-entry t0 ${joinTeam===0?"selected":""}`} onClick={()=>setJoinTeam(0)}>주황팀 희망</button><button className={`team-entry t1 ${joinTeam===1?"selected":""}`} onClick={()=>setJoinTeam(1)}>파랑팀 희망</button></div><button className="join-main" onClick={()=>{if(!name.trim())return setNotice("닉네임을 입력하세요.");const roomCode=codeFromInput(code);if(!roomCode)return setNotice("초대 코드 또는 링크를 입력하세요.");localStorage.yutName=name;action("join",{code:roomCode,name,team:joinTeam})}}>방 입장하기</button><button className="spectate-main" onClick={()=>{if(!name.trim())return setNotice("닉네임을 입력하세요.");const roomCode=codeFromInput(code);if(!roomCode)return setNotice("초대 코드 또는 링크를 입력하세요.");localStorage.yutName=name;action("join",{code:roomCode,name,spectate:true})}}>관전하기</button><small>진행 중인 방은 관전으로 들어갈 수 있어요.</small></section><small className="landing-notice">{notice}</small></main>;
- const turn=room.players[room.turn],isSpectator=room.spectators?.some(observer=>observer.id===me)??false,myPlayer=room.players.find(player=>player.id===me),winnerText=room.mode==="team"?`${room.winnerName??room.players.filter(p=>p.team===room.winner).map(p=>p.name).join(" · ")} 팀`:room.winnerName??room.players[room.winner??0]?.name;
- const pendingIndex=Math.min(selectedPending,Math.max(0,room.pending.length-1)),selectedResult=room.pending[pendingIndex];
- const secondsLeft=localActionDeadline?Math.max(1,Math.ceil((localActionDeadline-clock)/1000)):15;
- const guide=room.status==="finished"?"게임이 끝났습니다. 다음 게임 참가자를 정해 주세요.":rolling?"윷이 멈출 때까지 잠시 기다려 주세요.":room.stackOffer?.playerId===me?`같은 팀 말과 만났습니다. ${secondsLeft}초 안에 업을지 선택해 주세요.`:room.extraThrows>0&&turn?.id===me?`추가 던지기 ${room.extraThrows}회가 남았습니다. ${secondsLeft}초 안에 던져 주세요.`:room.pending.length>0&&turn?.id===me?`이번 턴 누적 결과(${room.pending.map(value=>labels[value]).join(" · ")}) 중 ${labels[selectedResult]}을 선택했습니다. ${secondsLeft}초 안에 빛나는 도착 칸을 눌러 이동하세요.`:turn?.id===me?`내 차례입니다. ${secondsLeft}초 안에 윷 던지기를 눌러 주세요.`:`${turn?.name ?? "상대"} 님이 움직이는 중입니다.`;
- const chatPanel=<ChatPanel chats={chats} text={text} setText={setText} me={me} open={chatOpen} onToggle={()=>setChatOpen(v=>!v)}/>;
- const mobileInfoTools=<MobileInfoTools active={mobileInfo} setActive={setMobileInfo} events={room.events} chats={chats} text={text} setText={setText} me={me}/>;
- const gameBoard=<Board room={room} me={me} pendingIndex={pendingIndex} rolling={rolling} fx={moveFx} onMove={(pieceId,takeShortcut,resultIndex)=>action("move",{pieceId,takeShortcut,resultIndex})}/>;
- const stackHost=room.stackOffer&&room.pieces.find(piece=>piece.id===room.stackOffer?.hostPieceId),stackHostName=stackHost&&room.players.find(player=>player.id===stackHost.owner)?.name;
- const stackPrompt=room.stackOffer?.playerId===me?<section className="stack-prompt"><b>{stackHostName} 님의 말과 만났어요.</b><span>이 말에 업어서 함께 갈까요?</span><div><button onClick={()=>action("stackDecision",{accept:true})}>예, 업기</button><button className="decline" onClick={()=>action("stackDecision",{accept:false})}>아니오</button></div></section>:null;
- const inviteLink=`${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room.code)}`;
- const shareInvite=async()=>{try{if(navigator.share)await navigator.share({title:"윷놀이터 초대",text:`${room.code} 방에서 함께 윷놀이해요!`,url:inviteLink});else{await navigator.clipboard.writeText(inviteLink);setNotice("초대 링크를 복사했습니다.")}}catch{}};
- const lobbyOverlay=<section className="lobby-overlay"><span>대기실</span><strong>참가 인원 {room.players.length}/8명 · 관전자 {room.spectators?.length??0}명</strong><p>{room.practice?"혼자 연습을 시작하시겠습니까?":"친구가 들어오면 시작할 수 있습니다."}</p><div className="invite-tools"><code>방 코드 {room.code}</code><button onClick={shareInvite}>초대 링크 복사 · 공유</button></div>{!room.practice&&<div className="role-switch"><b>{isSpectator?"현재 관전 중입니다":"현재 플레이어입니다"}</b><button onClick={()=>action("changeRole",{role:isSpectator?"player":"spectator",team:joinTeam})}>{isSpectator?"플레이어로 참여":"관전으로 전환"}</button><small>게임 시작 전까지만 바꿀 수 있어요.</small></div>}{room.mode==="team"&&!isSpectator&&<div className="team-picker"><b>내 팀을 미리 선택하세요</b><div className="team-options">{([0,1] as const).map(team=><button key={team} className={`team-option t${team} ${room.players.find(p=>p.id===me)?.team===team?"chosen":""}`} onClick={()=>action("selectTeam",{team})}><strong>{team===0?"주황팀":"파랑팀"} <small>{room.players.filter(p=>p.team===team).length}/4</small></strong><span>{room.players.filter(p=>p.team===team).map(p=>p.name).join(" · ")||"아직 없음"}</span></button>)}</div></div>}{room.hostId===me?<><div className="lobby-buttons">{room.mode==="team"&&room.players.length>1&&<button className="team-shuffle" onClick={()=>action("shuffleTeams")}>팀 자동 섞기</button>}<button onClick={()=>action("start")}>{room.practice?"연습 시작":"게임 시작"}</button></div><small>{room.mode==="team"?"팀당 최대 4명 · 두 팀 모두 참가해야 시작할 수 있어요.":"방장이 게임을 시작합니다."}</small></>:<small>{isSpectator?"관전 중 · 게임 시작을 기다리는 중…":"방장이 시작하기를 기다리는 중…"}</small>}</section>;
- const winnerBanner=room.status==="finished"?<FinishLobby room={room} me={me} isSpectator={isSpectator} joinTeam={joinTeam} winnerText={winnerText} action={action} onNewRoom={()=>{localStorage.removeItem("yutSession");setChats([]);setRoom(undefined);setNotice("새 방을 만들어 다시 시작하세요.")}}/>:null;
- const leaveRoom=()=>{if(!window.confirm("방에서 나갈까요? 진행 중인 게임에서는 재접속 전까지 내 턴이 자동으로 넘어갈 수 있습니다."))return;socket.emit("leaveRoom",{},()=>{localStorage.removeItem("yutSession");setChats([]);setRoom(undefined);setNotice("방에서 나왔습니다. 새 방을 만들거나 방 코드로 입장하세요.")})};
- const rulesModal=rulesOpen?<div className="rules-backdrop" onClick={()=>setRulesOpen(false)}><section className="rules-modal" role="dialog" aria-modal="true" aria-label="윷놀이 규칙" onClick={event=>event.stopPropagation()}><header><h2>윷놀이 규칙</h2><button onClick={()=>setRulesOpen(false)}>닫기</button></header><ol><li>도·개·걸·윷·모는 각각 1~5칸 이동합니다. 낙은 그 차례를 넘깁니다.</li><li>윷·모가 나오면 추가 던지기 1회를 얻습니다. 잡기도 추가 던지기 1회이며, 둘 다 발생하면 총 2회를 얻습니다.</li><li>추가 던지기는 모두 던진 뒤, 쌓인 결과 중 원하는 순서로 골라 이동합니다.</li><li>내 말이 판 위에 하나도 없을 때 빽도가 나오면 무효로 차례가 넘어갑니다. 빽도는 예외 없이 정확히 한 칸 뒤로 이동합니다.</li><li>출발·완주 칸에 정확히 도착하면 그 칸에 머물고, 다음 이동에 완주합니다. 그 칸에 닿은 뒤 이동력이 남아 있으면 같은 이동으로 완주합니다.</li><li>같은 팀 말은 업을지 선택할 수 있고, 상대 말이 있는 칸에 도착하면 잡아 출발로 돌려보냅니다.</li><li>지름길이 빛나면 도착 칸을 눌러 선택합니다. 팀전은 팀의 말 4개씩을 먼저 완주하면 승리합니다.</li></ol></section></div>:null;
- return <main className="game"><header><h1>온라인 윷놀이</h1><strong>방 코드: {room.code}</strong><span>{room.practice?"혼자 연습":room.mode==="team"?"팀전":"개인전"}{isSpectator?" · 관전 중":""}</span><button className="rules-button" onClick={()=>setRulesOpen(true)}>규칙</button><button className="leave-room" onClick={leaveRoom}>← 나가기</button></header><section className="players">{room.players.map((p,i)=>{const color=playerColor(room,p.id);return <div key={p.id} className={i===room.turn?"active":""}><i className={`dot t${color}`}/>{p.name}{p.id===me?" (나)":""}{!p.connected&&" · 재접속 대기"}</div>})}</section>{mobileInfoTools}{room.spectators?.length>0&&<p className="spectator-count">관전자 {room.spectators.length}명 · {room.spectators.map(observer=>observer.name).join(" · ")}</p>}{captureFx&&<div className="capture-toast" role="status">💥 잡기! {room.players.find(p=>p.id===captureFx.by)?.name} 님이 상대 말 {captureFx.count}개를 출발로 돌려보냈어요.</div>}{rulesModal}{winnerBanner}{room.status==="lobby"?<section className="play lobby-play"><div><Board room={room} me={me} pendingIndex={0} rolling={false} fx={moveFx} onMove={()=>{}} overlay={lobbyOverlay}/></div>{chatPanel}</section>:<section className="play"><div><p className="turn">{room.status==="finished"?"게임 종료!":`${turn?.name} 님의 차례`}</p><p className="game-guide" aria-live="polite">{guide}</p><StickRoll data={room.lastRoll}/><PieceStatus room={room} turnId={turn?.id}/><button className="roll" disabled={rolling||turn?.id!==me||room.status!=="playing"||(room.pending.length>0&&room.extraThrows===0)} onClick={()=>action("roll")}>윷 던지기</button>{rolling&&<p className="rolling-note">윷이 멈추는 중…</p>}{room.pending.length>0&&!rolling&&!room.stackOffer&&<section className={`pending-results ${turn?.id===me?"mine":"spectator"}`}><b>{room.extraThrows>0?`${turn?.name} 님 추가 던지기 ${room.extraThrows}회 남음`:turn?.id===me?"이동할 결과 선택":`${turn?.name} 님의 보유 이동력`}</b><div>{room.pending.map((result,index)=><button key={`${result}-${index}`} className={index===pendingIndex?"selected":""} disabled={room.extraThrows>0||turn?.id!==me} onClick={()=>turn?.id===me&&setSelectedPending(index)}>{labels[result]}</button>)}</div><small>{room.extraThrows>0?`${turn?.name} 님이 추가 던지기 중입니다.`:turn?.id===me?"선택한 결과의 빛나는 도착 칸을 누르세요.":"상대가 결과를 골라 이동 중입니다."}</small></section>}{stackPrompt}{gameBoard}</div><div className="right-rail"><DesktopInfoPanel events={room.events} chats={chats} text={text} setText={setText} me={me}/></div></section>}<small className="notice">{notice}</small></main>}
-createRoot(document.getElementById("root")!).render(<App/>);
+const socket = io();
+const labels: Record<Result, string> = {
+  DO: "도",
+  GAE: "개",
+  GEOL: "걸",
+  YUT: "윷",
+  MO: "모",
+  BACKDO: "빽도",
+  NAK: "낙",
+};
+let soundContext: AudioContext | undefined;
+let effectsOn = true,
+  effectsVolume = 0.52,
+  localActionDeadline = 0;
+const tone = (frequency: number, seconds = 0.12, delay = 0) => {
+  if (!effectsOn || effectsVolume <= 0) return;
+  try {
+    const context = (soundContext ??= new AudioContext()),
+      oscillator = context.createOscillator(),
+      gain = context.createGain();
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, context.currentTime + delay);
+    gain.gain.exponentialRampToValueAtTime(
+      0.07 * effectsVolume,
+      context.currentTime + delay + 0.01,
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      context.currentTime + delay + seconds,
+    );
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(context.currentTime + delay);
+    oscillator.stop(context.currentTime + delay + seconds + 0.02);
+  } catch {}
+};
+const rollSound = () =>
+  [155, 205, 175, 230].forEach((value, index) =>
+    tone(value, 0.09, index * 0.12),
+  );
+const turnSound = () => {
+  tone(660, 0.1);
+  tone(880, 0.15, 0.13);
+};
+const victorySound = () =>
+  [523, 659, 784, 1046].forEach((value, index) =>
+    tone(value, 0.18, index * 0.14),
+  );
+const playAsset = (source: string, volume = 0.7) => {
+  if (!effectsOn || effectsVolume <= 0) return;
+  try {
+    const audio = new Audio(source);
+    audio.preload = "auto";
+    audio.volume = Math.min(1, volume * effectsVolume);
+    void audio.play().catch(() => {});
+  } catch {}
+};
+const resultAudio: Record<Result, string> = {
+  DO: "/sounds/Do.wav",
+  GAE: "/sounds/Gae.wav",
+  GEOL: "/sounds/Geol.wav",
+  YUT: "/sounds/Yut.wav",
+  MO: "/sounds/Mo.wav",
+  BACKDO: "/sounds/Backdo.wav",
+  NAK: "/sounds/Nak.wav",
+};
+const playResultSound = (result: Result) =>
+  playAsset(resultAudio[result], 0.82);
+const landingSound = () => playAsset("/sounds/yut-landing.wav", 0.38);
+const speak = (text: string) => {
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "ko-KR";
+    utterance.rate = 0.92;
+    window.speechSynthesis.speak(utterance);
+  } catch {}
+};
+const enableSound = () => {
+  try {
+    const context = (soundContext ??= new AudioContext());
+    void context.resume();
+  } catch {}
+};
+type Chat = { name: string; playerId?: string; text: string; at: number };
+type MoveFx = {
+  id: string;
+  owner: string;
+  from: number;
+  to: number;
+  at: number;
+};
+const playerColor = (room: Room, playerId: string) =>
+  room.mode === "solo"
+    ? Math.max(
+        0,
+        room.players.findIndex((player) => player.id === playerId),
+      )
+    : (room.players.find((player) => player.id === playerId)?.team ?? 0);
+const codeFromInput = (value: string) => {
+  const raw = value.trim();
+  try {
+    const url = new URL(raw),
+      entry = [...url.searchParams.entries()].find(
+        ([key]) => key.toLowerCase() === "room" || key.toLowerCase() === "code",
+      );
+    return (entry?.[1] ?? raw).trim().toUpperCase();
+  } catch {
+    return raw.toUpperCase();
+  }
+};
+function PieceFlight({
+  fx,
+  room,
+  locations,
+}: {
+  fx?: MoveFx;
+  room: Room;
+  locations: [number, number][];
+}) {
+  const [at, setAt] = useState<[number, number]>();
+  useEffect(() => {
+    if (!fx) return;
+    const from = fx.from < 0 ? 0 : fx.from,
+      to = fx.to === 99 ? 0 : fx.to;
+    setAt(locations[from] ?? locations[0]);
+    const frame = requestAnimationFrame(() =>
+      setAt(locations[to] ?? locations[0]),
+    );
+    const timer = window.setTimeout(() => setAt(undefined), 820);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [fx?.at]);
+  if (!fx || !at) return null;
+  const color = playerColor(room, fx.owner);
+  return (
+    <div
+      className={`piece-flight t${color}`}
+      style={{ left: `${at[0]}%`, top: `${at[1]}%` }}
+    >
+      <span>
+        {room.players.find((p) => p.id === fx.owner)?.name.slice(0, 2)}
+      </span>
+    </div>
+  );
+}
+function BgmToggle() {
+  const [open, setOpen] = useState(false),
+    [bgmOn, setBgmOn] = useState(false),
+    [bgmVolume, setBgmVolume] = useState(0.22),
+    [fxOn, setFxOn] = useState(effectsOn),
+    [fxVolume, setFxVolume] = useState(effectsVolume);
+  const [host, setHost] = useState<HTMLElement>();
+  const audio = useRef<HTMLAudioElement | undefined>(undefined);
+  useEffect(() => {
+    const rules = document.querySelector<HTMLElement>(".rules-button");
+    if (!rules) return;
+    const slot = document.createElement("span");
+    slot.className = "header-bgm-slot";
+    rules.insertAdjacentElement("afterend", slot);
+    setHost(slot);
+    return () => slot.remove();
+  }, []);
+  useEffect(() => {
+    const element = new Audio("/sounds/Yutnori_BGM.wav");
+    element.loop = true;
+    element.volume = bgmVolume;
+    element.preload = "auto";
+    audio.current = element;
+    return () => {
+      element.pause();
+      element.src = "";
+    };
+  }, []);
+  const toggleBgm = () => {
+    enableSound();
+    const element = audio.current;
+    if (!element) return;
+    if (element.paused) {
+      void element
+        .play()
+        .then(() => setBgmOn(true))
+        .catch(() => setBgmOn(false));
+    } else {
+      element.pause();
+      setBgmOn(false);
+    }
+  };
+  const changeBgm = (value: number) => {
+    setBgmVolume(value);
+    if (audio.current) audio.current.volume = value;
+  };
+  const changeFx = (value: number) => {
+    effectsVolume = value;
+    setFxVolume(value);
+  };
+  const toggleFx = () => {
+    effectsOn = !fxOn;
+    setFxOn(effectsOn);
+  };
+  const content = (
+    <span className="sound-settings">
+      <button
+        type="button"
+        className="bgm-toggle"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        🔊 소리 설정
+      </button>
+      {open && (
+        <section className="sound-menu">
+          <div>
+            <b>BGM</b>
+            <button onClick={toggleBgm}>{bgmOn ? "끄기" : "켜기"}</button>
+          </div>
+          <input
+            aria-label="BGM 볼륨"
+            type="range"
+            min="0"
+            max="0.5"
+            step="0.01"
+            value={bgmVolume}
+            onChange={(event) => changeBgm(Number(event.target.value))}
+          />
+          <small>볼륨 {Math.round(bgmVolume * 100)}%</small>
+          <div>
+            <b>효과음</b>
+            <button onClick={toggleFx}>{fxOn ? "끄기" : "켜기"}</button>
+          </div>
+          <input
+            aria-label="효과음 볼륨"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={fxVolume}
+            disabled={!fxOn}
+            onChange={(event) => changeFx(Number(event.target.value))}
+          />
+          <small>볼륨 {Math.round(fxVolume * 100)}%</small>
+        </section>
+      )}
+    </span>
+  );
+  return host ? createPortal(content, host) : null;
+}
+function StickRoll({
+  data,
+}: {
+  data?: { result: Result; sticks: boolean[]; rollId: number };
+}) {
+  return (
+    <div
+      className={`sticks three-roll ${data?.result === "NAK" ? "nak" : ""} ${data?.result === "BACKDO" ? "backdo" : ""}`}
+    >
+      <div className="throw-zone">
+        <span>윷 던지기</span>
+        <div className="side-legend">
+          <b>
+            <i className="legend-front" />
+            앞면
+          </b>
+          <b>
+            <i className="legend-back" />
+            뒷면
+          </b>
+        </div>
+        <YutThree data={data} />
+      </div>
+      {data && (
+        <b key={data.rollId} className="result-pop">
+          {labels[data.result]}
+          <small>
+            {data.result === "NAK"
+              ? "판 밖으로 떨어졌어요"
+              : data.result === "BACKDO"
+                ? "한 칸 뒤로 이동"
+                : ""}
+          </small>
+        </b>
+      )}
+      <BgmToggle />
+    </div>
+  );
+}
+function PieceStatus({ room, turnId }: { room: Room; turnId?: string }) {
+  return (
+    <section className="piece-status" aria-label="말 현황">
+      {room.players.map((p) => {
+        const mine = room.pieces.filter((x) => x.owner === p.id),
+          color = playerColor(room, p.id),
+          active = p.id === turnId;
+        return (
+          <div key={p.id} className={active ? "active" : ""}>
+            <i className={`dot t${color}`} />
+            <b>{p.name}</b>
+            {active && <em className="turn-badge">차례</em>}
+            <span className="mini-pieces">
+              {mine.map((piece, n) => (
+                <i
+                  key={piece.id}
+                  className={`mini-piece t${color} ${piece.finished ? "finished" : piece.pos !== -1 ? "on-board" : ""}`}
+                  title={`${n + 1}번 말`}
+                >
+                  {n + 1}
+                </i>
+              ))}
+            </span>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+function ChatPanel({
+  chats,
+  text,
+  setText,
+  me,
+  open,
+  onToggle,
+}: {
+  chats: Chat[];
+  text: string;
+  setText: (value: string) => void;
+  me: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <aside className={`chat-panel ${open ? "open" : "closed"}`}>
+      <div className="chat-heading">
+        <h3>채팅</h3>
+        <button
+          type="button"
+          className="chat-toggle"
+          onClick={onToggle}
+          aria-expanded={open}
+        >
+          {open ? "끄기" : "켜기"}
+        </button>
+      </div>
+      {open && (
+        <>
+          <div className="messages">
+            {[...chats].reverse().map((c, i) => (
+              <p key={`${c.at}-${i}`}>
+                <time>
+                  {new Date(c.at).toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </time>
+                <b>
+                  {c.name}
+                  {c.playerId === me ? " (나)" : ""}
+                </b>{" "}
+                {c.text}
+              </p>
+            ))}
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (text.trim()) {
+                socket.emit("chat", { text });
+                setText("");
+              }
+            }}
+          >
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="메시지 입력"
+            />
+            <button>전송</button>
+          </form>
+        </>
+      )}
+    </aside>
+  );
+}
+function ActivityPanel({
+  events,
+  open,
+  onToggle,
+}: {
+  events?: Room["events"];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const [clock, setClock] = useState(0);
+  const lastRoll = [...(events ?? [])]
+    .filter((event) => event.kind === "roll")
+    .at(-1);
+  useEffect(() => {
+    if (!lastRoll) return;
+    const remaining = 3200 - (Date.now() - lastRoll.at);
+    if (remaining <= 0) {
+      setClock(Date.now());
+      return;
+    }
+    setClock(0);
+    const timer = window.setTimeout(() => setClock(Date.now()), remaining);
+    return () => window.clearTimeout(timer);
+  }, [lastRoll?.id]);
+  const lastRollVisible =
+    !lastRoll || (clock > 0 && Date.now() - lastRoll.at >= 3200);
+  const recent = [...(events ?? [])]
+    .filter(
+      (event) =>
+        event.kind !== "roll" || event.id !== lastRoll?.id || lastRollVisible,
+    )
+    .sort((a, b) => b.at - a.at || b.id - a.id)
+    .slice(0, 12);
+  return (
+    <section className={`activity-panel ${open ? "open" : "closed"}`}>
+      <div className="activity-heading">
+        <h3>진행 기록</h3>
+        <button type="button" onClick={onToggle} aria-expanded={open}>
+          {open ? "접기" : "열기"}
+        </button>
+      </div>
+      {open &&
+        (recent.length ? (
+          <div className="activity-list">
+            {recent.map((event) => (
+              <p key={event.id}>
+                <time>
+                  {new Date(event.at).toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </time>
+                {event.text}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="activity-empty">게임을 시작하면 기록이 표시됩니다.</p>
+        ))}
+    </section>
+  );
+}
+function MobileInfoTools({
+  active,
+  setActive,
+  events,
+  chats,
+  text,
+  setText,
+  me,
+}: {
+  active: "activity" | "chat" | null;
+  setActive: (value: "activity" | "chat" | null) => void;
+  events?: Room["events"];
+  chats: Chat[];
+  text: string;
+  setText: (value: string) => void;
+  me: string;
+}) {
+  return (
+    <section className="mobile-info-tools">
+      <button type="button" onClick={() => setActive("chat")}>
+        💬 채팅 · 기록
+      </button>
+      {active && (
+        <div
+          className="mobile-info-backdrop"
+          role="presentation"
+          onClick={() => setActive(null)}
+        >
+          <section
+            className="mobile-info-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={active === "activity" ? "진행 기록" : "채팅"}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mobile-info-tabs">
+              <button
+                className={active === "chat" ? "active" : ""}
+                onClick={() => setActive("chat")}
+              >
+                채팅
+              </button>
+              <button
+                className={active === "activity" ? "active" : ""}
+                onClick={() => setActive("activity")}
+              >
+                기록
+              </button>
+              <button
+                type="button"
+                className="mobile-info-close"
+                onClick={() => setActive(null)}
+              >
+                닫기 ×
+              </button>
+            </div>
+            {active === "activity" ? (
+              <ActivityPanel
+                events={events}
+                open={true}
+                onToggle={() => setActive(null)}
+              />
+            ) : (
+              <ChatPanel
+                chats={chats}
+                text={text}
+                setText={setText}
+                me={me}
+                open={true}
+                onToggle={() => setActive(null)}
+              />
+            )}
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+function DesktopInfoPanel({
+  events,
+  chats,
+  text,
+  setText,
+  me,
+}: {
+  events?: Room["events"];
+  chats: Chat[];
+  text: string;
+  setText: (value: string) => void;
+  me: string;
+}) {
+  const [tab, setTab] = useState<"chat" | "activity">("chat"),
+    [chatOn, setChatOn] = useState(true);
+  const showChat = () => {
+    setChatOn(true);
+    setTab("chat");
+  };
+  const toggleChat = () => {
+    setChatOn((on) => {
+      if (on) setTab("activity");
+      else setTab("chat");
+      return !on;
+    });
+  };
+  return (
+    <aside className={`desktop-info-panel ${chatOn ? "chat-on" : "chat-off"}`}>
+      <nav>
+        <button
+          className={tab === "chat" && chatOn ? "active" : ""}
+          onClick={showChat}
+        >
+          채팅
+        </button>
+        <button
+          className={tab === "activity" ? "active" : ""}
+          onClick={() => setTab("activity")}
+        >
+          기록
+        </button>
+        <button className="chat-power" onClick={toggleChat}>
+          {chatOn ? "채팅 끄기" : "채팅 켜기"}
+        </button>
+      </nav>
+      {tab === "chat" && chatOn ? (
+        <ChatPanel
+          chats={chats}
+          text={text}
+          setText={setText}
+          me={me}
+          open={true}
+          onToggle={toggleChat}
+        />
+      ) : (
+        <ActivityPanel events={events} open={true} onToggle={() => {}} />
+      )}
+    </aside>
+  );
+}
+function FinishLobby({
+  room,
+  me,
+  isSpectator,
+  joinTeam,
+  winnerText,
+  action,
+  onNewRoom,
+}: {
+  room: Room;
+  me: string;
+  isSpectator: boolean;
+  joinTeam: 0 | 1;
+  winnerText?: string;
+  action: (event: string, data?: object) => void;
+  onNewRoom: () => void;
+}) {
+  const requested = room.rematchVotes ?? [],
+    ready = room.players
+      .filter((player) => requested.includes(player.id) && player.connected)
+      .map((player) => player.id),
+    voted = ready.includes(me),
+    isHost = room.hostId === me;
+  return (
+    <section className="finish-lobby">
+      <span>🏆 GAME OVER</span>
+      <strong>{winnerText} 승리!</strong>
+      <small>다음 게임 참가자를 정해 주세요.</small>
+      <div className="role-switch">
+        <b>{isSpectator ? "현재 관전 중입니다" : "현재 플레이어입니다"}</b>
+        <button
+          onClick={() =>
+            action("changeRole", {
+              role: isSpectator ? "player" : "spectator",
+              team: joinTeam,
+            })
+          }
+        >
+          {isSpectator ? "플레이어로 참여" : "관전으로 전환"}
+        </button>
+        <small>다음 게임을 시작하기 전까지 언제든 바꿀 수 있어요.</small>
+      </div>
+      {room.mode === "team" && !isSpectator && (
+        <div className="team-picker">
+          <b>다음 게임 팀 선택</b>
+          <div className="team-options">
+            {([0, 1] as const).map((team) => (
+              <button
+                key={team}
+                className={`team-option t${team} ${room.players.find((player) => player.id === me)?.team === team ? "chosen" : ""}`}
+                onClick={() => action("selectTeam", { team })}
+              >
+                <strong>
+                  {team === 0 ? "주황팀" : "파랑팀"}{" "}
+                  <small>
+                    {
+                      room.players.filter((player) => player.team === team)
+                        .length
+                    }
+                    /4
+                  </small>
+                </strong>
+                <span>
+                  {room.players
+                    .filter((player) => player.team === team)
+                    .map((player) => player.name)
+                    .join(" · ") || "아직 없음"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <section className="ready-roster">
+        <b>다음 게임 준비 현황 · {ready.length}명</b>
+        {room.players.map((player) => (
+          <p
+            key={player.id}
+            className={ready.includes(player.id) ? "ready" : "waiting"}
+          >
+            <i />
+            {player.name}
+            {player.id === me ? " (나)" : ""}
+            <em>
+              {!player.connected
+                ? "연결 대기"
+                : ready.includes(player.id)
+                  ? "준비 완료"
+                  : "대기 중"}
+            </em>
+          </p>
+        ))}
+      </section>
+      {!isSpectator && (
+        <button
+          className="ready-button"
+          disabled={voted}
+          onClick={() => action("rematchVote")}
+        >
+          {voted ? "준비 완료" : "다음 게임 준비"}
+        </button>
+      )}
+      {isHost && (
+        <div className="host-rematch">
+          <b>방장: 준비 완료한 인원만 다음 게임에 참가합니다.</b>
+          {room.mode === "team" && (
+            <button
+              className="team-shuffle"
+              onClick={() => action("shuffleTeams")}
+            >
+              팀 자동 섞기
+            </button>
+          )}
+          <button
+            className="start-ready"
+            onClick={() => action("startReadyRematch")}
+          >
+            준비 완료 인원으로 게임 시작
+          </button>
+        </div>
+      )}
+      {!isHost && (
+        <small className="host-wait">
+          방장이 준비 인원을 확인한 뒤 게임을 시작합니다.
+        </small>
+      )}
+      <button className="new-room" onClick={onNewRoom}>
+        새 방 만들기
+      </button>
+    </section>
+  );
+}
+function Board({
+  room,
+  me,
+  onMove,
+  pendingIndex = 0,
+  rolling,
+  fx,
+  overlay,
+}: {
+  room: Room;
+  me: string;
+  onMove: (id: string, takeShortcut?: boolean, resultIndex?: number) => void;
+  pendingIndex?: number;
+  rolling: boolean;
+  fx?: MoveFx;
+  overlay?: React.ReactNode;
+}) {
+  const [routePiece, setRoutePiece] = useState<string>();
+  const cells = Array.from({ length: 29 }, (_, i) => i);
+  // 시작점이 오른쪽 아래가 되도록 윷판 전체를 좌우 대칭으로 배치한다.
+  const locations: [number, number][] = [
+    [92, 92],
+    [92, 75],
+    [92, 58],
+    [92, 41],
+    [92, 24],
+    [92, 8],
+    [75, 8],
+    [58, 8],
+    [41, 8],
+    [24, 8],
+    [8, 8],
+    [8, 25],
+    [8, 42],
+    [8, 59],
+    [8, 76],
+    [8, 92],
+    [25, 92],
+    [42, 92],
+    [59, 92],
+    [76, 92],
+    [75, 25],
+    [62, 38],
+    [50, 50],
+    [38, 62],
+    [25, 75],
+    [25, 25],
+    [38, 38],
+    [62, 62],
+    [75, 75],
+  ];
+  const canMove =
+    !rolling &&
+    room.pending.length > 0 &&
+    room.extraThrows === 0 &&
+    room.players[room.turn]?.id === me;
+  const amount = (
+    { DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5, BACKDO: -1, NAK: 0 } as const
+  )[room.pending[pendingIndex] ?? "NAK"];
+  const forward = (p: number, route?: "a" | "b") =>
+    p === -1
+      ? 1
+      : p === 19 || p === 28
+        ? 0
+        : p === 0
+          ? 99
+          : p === 5
+            ? route === "a"
+              ? 20
+              : 6
+            : p === 10
+              ? route === "b"
+                ? 25
+                : 11
+              : p === 20
+                ? 21
+                : p === 21
+                  ? 22
+                  : p === 22
+                    ? route === "b"
+                      ? 27
+                      : 23
+                    : p === 23
+                      ? 24
+                      : p === 24
+                        ? 15
+                        : p === 25
+                          ? 26
+                          : p === 26
+                            ? 22
+                            : p === 27
+                              ? 28
+                              : p + 1;
+  const backward = (p: number, route?: "a" | "b") =>
+    p === -1
+      ? -1
+      : p === 0
+        ? route === "b"
+          ? 28
+          : 19
+        : p === 1
+          ? 0
+          : p === 15 && route === "a"
+            ? 24
+            : p === 20
+              ? 5
+              : p === 21
+                ? 20
+                : p === 22
+                  ? 21
+                  : p === 23
+                    ? 22
+                    : p === 24
+                      ? 23
+                      : p === 25
+                        ? 10
+                        : p === 26
+                          ? 25
+                          : p === 27
+                            ? 22
+                            : p - 1;
+  const target = (pos: number, shortcut = false, route?: "a" | "b") => {
+    let at = pos,
+      activeRoute = route;
+    if (amount > 0 && shortcut) activeRoute = pos === 5 ? "a" : "b";
+    if (amount > 0 && pos === 22) activeRoute = shortcut ? "b" : "a";
+    for (let i = 0; i < Math.abs(amount); i++) {
+      at = amount > 0 ? forward(at, activeRoute) : backward(at, activeRoute);
+      if (at === 99) activeRoute = undefined;
+      if (at === 99) break;
+    }
+    return at;
+  };
+  const waitingPieces = room.pieces
+    .filter((p) => p.owner === me && p.pos === -1 && !p.finished)
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  const nextWaiting = waitingPieces[0];
+  // 대기 말은 다음 번호 하나만 후보로 둔다. 첫 이동은 1번, 이후에는 판 위 말과 다음 대기 말을 고를 수 있다.
+  // 업힌 말은 대표 말을 따라갈 뿐, 독립 이동 후보로 만들지 않는다.
+  // 빽도는 아직 출발하지 않은 말을 선택할 수 없고, 판 위에 있는 말만 목적지가 빛난다.
+  const movable = room.pieces.filter(
+    (p) =>
+      canMove &&
+      p.owner === me &&
+      !p.finished &&
+      !p.carriedBy &&
+      (amount < 0 ? p.pos !== -1 : p.pos !== -1 || p.id === nextWaiting?.id),
+  );
+  const normalMoves = movable.map((piece) => ({
+    piece,
+    to: target(piece.pos, false, piece.route),
+  }));
+  const shortcutMoves = movable
+    .filter((p) => amount > 0 && [5, 10, 22].includes(p.pos))
+    .map((piece) => ({ piece, to: target(piece.pos, true, piece.route) }));
+  const targets = new Set(normalMoves.map((x) => (x.to === -1 ? 0 : x.to)));
+  const shortcutTargets = new Set(
+    shortcutMoves.map((x) => (x.to === -1 ? 0 : x.to)),
+  );
+  const finishMove =
+    shortcutMoves.find((move) => move.to === 99) ??
+    normalMoves.find((move) => move.to === 99);
+  const pieceNumber = (id: string) =>
+    Number(id.slice(id.lastIndexOf("-") + 1)) + 1;
+  const routePos = room.pieces.find((p) => p.id === routePiece)?.pos;
+  return (
+    <div
+      className={`board ${shortcutMoves.length ? "shortcut-available" : ""}`}
+    >
+      <span className="corner-label top-left">지름길</span>
+      <span className="corner-label top-right">지름길</span>
+      {cells.map((n) => {
+        const [x, y] = locations[n];
+        const ps = room.pieces.filter((p) => p.pos === n && !p.finished);
+        const visible = ps.filter((p) => !p.carriedBy);
+        const lit = targets.has(n),
+          shortcutLit = shortcutTargets.has(n);
+        const normal = normalMoves.find((x) => (x.to === -1 ? 0 : x.to) === n),
+          shortcut = shortcutMoves.find((x) => (x.to === -1 ? 0 : x.to) === n);
+        const moveToHere = () => {
+          const selected = shortcut ?? normal;
+          if (selected) onMove(selected.piece.id, !!shortcut, pendingIndex);
+        };
+        const offsets = [
+          [-8, -8],
+          [8, -8],
+          [-8, 8],
+          [8, 8],
+        ];
+        return (
+          <div
+            key={n}
+            role={normal || shortcut ? "button" : undefined}
+            tabIndex={normal || shortcut ? 0 : undefined}
+            onClick={moveToHere}
+            onKeyDown={(e) => {
+              if (
+                (e.key === "Enter" || e.key === " ") &&
+                (normal || shortcut)
+              ) {
+                e.preventDefault();
+                moveToHere();
+              }
+            }}
+            className={`cell ${[5, 10, 15].includes(n) ? "corner" : ""} ${lit ? "target" : ""} ${shortcutLit ? "shortcut-target" : ""} ${normal || shortcut ? "destination" : ""} ${visible.length > 1 ? "multi-piece-cell" : ""}`}
+            style={{ left: `${x}%`, top: `${y}%` }}
+          >
+            {visible.map((p, index) => {
+              const owner = room.players.find((x) => x.id === p.owner),
+                count = p.stackedWith.length + 1,
+                offset = offsets[index % offsets.length],
+                color = owner ? playerColor(room, owner.id) : 0;
+              return (
+                <button
+                  key={p.id}
+                  title={`${owner?.name ?? "플레이어"}의 ${pieceNumber(p.id)}번 말${count > 1 ? ` · 업기 ×${count}` : ""}`}
+                  onClick={(e) => e.stopPropagation()}
+                  tabIndex={-1}
+                  className={`piece t${color}`}
+                  style={
+                    visible.length > 1
+                      ? {
+                          transform: `translate(calc(-50% + ${offset[0]}px), calc(-50% + ${offset[1]}px)) scale(.76)`,
+                        }
+                      : undefined
+                  }
+                >
+                  <span className="piece-name">{owner?.name.slice(0, 3)}</span>
+                  {count > 1 && <b className="stack-count">×{count}</b>}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+      {routePiece && (
+        <div className="route-choice">
+          <b>
+            {routePos === 22
+              ? "중앙에서 어느 길로 갈까요?"
+              : "어느 길로 갈까요?"}
+          </b>
+          <div>
+            <button
+              onClick={() => {
+                onMove(routePiece, false, pendingIndex);
+                setRoutePiece(undefined);
+              }}
+            >
+              {routePos === 22 ? "왼쪽 아래 길" : "바깥길"}
+            </button>
+            <button
+              onClick={() => {
+                onMove(routePiece, true, pendingIndex);
+                setRoutePiece(undefined);
+              }}
+            >
+              {routePos === 22 ? "오른쪽 아래 길" : "지름길"}
+            </button>
+          </div>
+          <small>선택한 말만 이동합니다.</small>
+        </div>
+      )}
+      {overlay}
+      <PieceFlight fx={fx} room={room} locations={locations} />
+      {finishMove && (
+        <button
+          className="finish target-finish"
+          onClick={() =>
+            onMove(
+              finishMove.piece.id,
+              finishMove === shortcutMoves.find((move) => move.to === 99),
+              pendingIndex,
+            )
+          }
+        >
+          완주!
+        </button>
+      )}
+      <span className="start">출발 · 완주</span>
+    </div>
+  );
+}
+function App() {
+  const [name, setName] = useState(localStorage.yutName || "");
+  const [code, setCode] = useState(
+    () => new URLSearchParams(window.location.search).get("room") ?? "",
+  );
+  const platformJoinToken = useMemo(
+    () => new URLSearchParams(window.location.search).get("joinToken"),
+    [],
+  );
+  const platformJoinAttempted = useRef(false);
+  const [mode, setMode] = useState<"solo" | "team">("team");
+  const [joinTeam, setJoinTeam] = useState<0 | 1>(0);
+  const [room, setRoom] = useState<Room>();
+  const [me, setMe] = useState("");
+  const [notice, setNotice] = useState("");
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [text, setText] = useState("");
+  const [chatOpen, setChatOpen] = useState(() =>
+    typeof window === "undefined"
+      ? true
+      : window.innerWidth > 1000 && window.screen.width > 760,
+  );
+  const [activityOpen, setActivityOpen] = useState(true);
+  const [mobileInfo, setMobileInfo] = useState<"activity" | "chat" | null>(
+    null,
+  );
+  const [connection, setConnection] = useState<"connected" | "reconnecting">(
+    socket.connected ? "connected" : "reconnecting",
+  );
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [selectedPending, setSelectedPendingState] = useState(0);
+  const setSelectedPending = (value: React.SetStateAction<number>) => {
+    setSelectedPendingState(value);
+    if (typeof value === "number")
+      socket.emit(
+        "selectMoveResult",
+        { resultIndex: value },
+        (response: { ok: boolean; error?: string }) => {
+          if (!response?.ok)
+            setNotice(response?.error ?? "이동력 선택을 처리하지 못했습니다.");
+        },
+      );
+  };
+  const [rolling, setRolling] = useState(false);
+  const [clock, setClock] = useState(Date.now());
+  const completedRoll = useRef<number | undefined>(undefined);
+  const announcedTurn = useRef<string | undefined>(undefined);
+  const announcedFinish = useRef<string | undefined>(undefined);
+  const [captureFx, setCaptureFx] = useState<{
+    by: string;
+    count: number;
+    at: number;
+  }>();
+  const [moveFx, setMoveFx] = useState<MoveFx>();
+  useEffect(() => {
+    const receive = (r: Room) => {
+      setRoom(r);
+      if (socket.id) setMe(socket.id);
+      const participant =
+        r.players.find((p) => p.id === socket.id) ??
+        r.spectators?.find((observer) => observer.id === socket.id);
+      if (participant && socket.id)
+        localStorage.yutSession = JSON.stringify({
+          code: r.code,
+          playerId: socket.id,
+        });
+    };
+    const receiveMove = (fx: MoveFx) => setMoveFx(fx);
+    const restore = () => {
+      const saved = localStorage.yutSession;
+      if (!saved) {
+        if (platformJoinToken && !platformJoinAttempted.current) {
+          platformJoinAttempted.current = true;
+          socket.emit(
+            "platformJoin",
+            { joinToken: platformJoinToken },
+            (result: { ok: boolean; code?: string; error?: string }) => {
+              if (!result?.ok) {
+                setNotice(result?.error ?? "플랫폼 자동 입장에 실패했습니다.");
+                return;
+              }
+              localStorage.yutSession = JSON.stringify({ code: result.code, playerId: socket.id });
+              const url = new URL(window.location.href);
+              url.searchParams.delete("joinToken");
+              window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+              setConnection("connected");
+            },
+          );
+          return;
+        }
+        setConnection("connected");
+        return;
+      }
+      try {
+        const session = JSON.parse(saved);
+        setConnection("reconnecting");
+        socket.emit("reconnectRoom", session, (result: { ok: boolean }) => {
+          if (!result?.ok) localStorage.removeItem("yutSession");
+          setConnection("connected");
+        });
+      } catch {
+        localStorage.removeItem("yutSession");
+        setConnection("connected");
+      }
+    };
+    const onConnect = () => restore(),
+      onDisconnect = () => setConnection("reconnecting");
+    socket.on("room", receive);
+    socket.on("chat", (c: Chat) => setChats((v) => [...v.slice(-49), c]));
+    socket.on("pieceMove", receiveMove);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    if (socket.connected) restore();
+    return () => {
+      socket.off("room", receive);
+      socket.off("chat");
+      socket.off("pieceMove", receiveMove);
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+    };
+  }, []);
+  useEffect(() => {
+    const invite = new URLSearchParams(window.location.search).get("room");
+    if (!invite) return;
+    const validate = () =>
+      socket.emit(
+        "checkRoom",
+        { code: codeFromInput(invite) },
+        (result: { ok: boolean }) => {
+          if (result?.ok) return;
+          const url = new URL(window.location.href);
+          url.searchParams.delete("room");
+          window.history.replaceState(
+            {},
+            "",
+            `${url.pathname}${url.search}${url.hash}`,
+          );
+          setCode("");
+          setNotice(
+            "초대 방이 없거나 더 이상 입장할 수 없습니다. 대기실로 돌아왔습니다.",
+          );
+        },
+      );
+    if (socket.connected) validate();
+    else socket.once("connect", validate);
+    return () => {
+      socket.off("connect", validate);
+    };
+  }, []);
+  // 서버 결과가 도착해도 화면을 그리기 전에 잠금 처리한다. 굴림 중에는 목적지 빛·이동 결과 선택이 절대 보이지 않는다.
+  useLayoutEffect(() => {
+    const rollId = room?.lastRoll?.rollId;
+    if (!rollId || completedRoll.current === rollId) return;
+    completedRoll.current = rollId;
+    rollSound();
+    setRolling(true);
+    const result = room.lastRoll?.result;
+    const resultTimer = window.setTimeout(() => {
+      if (result) {
+        landingSound();
+        playResultSound(result);
+      }
+    }, 2550);
+    const finishTimer = window.setTimeout(() => setRolling(false), 3200);
+    return () => {
+      window.clearTimeout(resultTimer);
+      window.clearTimeout(finishTimer);
+    };
+  }, [room?.lastRoll?.rollId]);
+  useEffect(() => {
+    const player = room?.players[room.turn],
+      key = player && `${room?.code}:${player.id}:${room?.status}`;
+    if (!key || announcedTurn.current === key) return;
+    announcedTurn.current = key;
+    if (player.id === me && room?.status === "playing") turnSound();
+  }, [room?.code, room?.turn, room?.status, me]);
+  useEffect(() => {
+    const key =
+      room?.status === "finished" ? `${room.code}:${room.winner}` : undefined;
+    if (!key || announcedFinish.current === key) return;
+    announcedFinish.current = key;
+    victorySound();
+  }, [room?.status, room?.winner, room?.code]);
+  useEffect(() => {
+    const capture = room?.lastCapture;
+    if (!capture) return;
+    setCaptureFx(capture);
+    const timer = window.setTimeout(() => setCaptureFx(undefined), 1800);
+    return () => window.clearTimeout(timer);
+  }, [room?.lastCapture?.at]);
+  useEffect(() => {
+    if (!room?.actionDeadline) {
+      localActionDeadline = 0;
+      return;
+    }
+    const animationLeft = room.lastRoll
+      ? Math.max(0, 3200 - (Date.now() - room.lastRoll.rollId))
+      : 0;
+    localActionDeadline = Date.now() + 15000 + animationLeft;
+    const update = () => setClock(Date.now());
+    update();
+    const timer = window.setInterval(update, 250);
+    return () => window.clearInterval(timer);
+  }, [room?.actionDeadline]);
+  useEffect(
+    () =>
+      setSelectedPendingState((index) =>
+        Math.min(index, Math.max(0, (room?.pending.length ?? 1) - 1)),
+      ),
+    [room?.pending.length],
+  );
+  // A fresh roll should select the result that was just revealed. Earlier Yut/Mo
+  // results remain selectable, but are never mistaken for the latest roll.
+  useEffect(() => {
+    if (room?.lastRoll && room.pending.length > 0)
+      setSelectedPendingState(room.pending.length - 1);
+  }, [room?.lastRoll?.rollId]);
+  const action = (event: string, data: object = {}) => {
+    enableSound();
+    socket.emit(event, data, (x: { ok: boolean; error?: string }) => {
+      if (!x?.ok) setNotice(x?.error || "처리하지 못했습니다.");
+    });
+  };
+  if (!room)
+    return (
+      <main className="landing">
+        <h1>윷놀이터</h1>
+        <p>집에서도 함께 하는 실시간 윷놀이</p>
+        <input
+          className="nickname-input"
+          placeholder="닉네임을 입력하세요"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <section className="create-card">
+          <b>게임 방식 선택</b>
+          <div className="mode-picker">
+            <button
+              className={mode === "team" ? "selected" : ""}
+              onClick={() => setMode("team")}
+            >
+              👥 팀전<small>친구와 팀을 이루어 플레이</small>
+            </button>
+            <button
+              className={mode === "solo" ? "selected" : ""}
+              onClick={() => setMode("solo")}
+            >
+              🎯 개인전<small>각자 먼저 완주하기</small>
+            </button>
+          </div>
+          <button
+            className="create-main"
+            onClick={() => {
+              if (!name.trim()) return setNotice("닉네임을 입력하세요.");
+              localStorage.yutName = name;
+              socket.emit(
+                "create",
+                { name, mode },
+                (x: { ok: boolean; code?: string }) =>
+                  x.ok && setCode(x.code ?? ""),
+              );
+            }}
+          >
+            새 방 만들기
+          </button>
+          <div className="practice-row">
+            <span>규칙을 먼저 연습하고 싶나요?</span>
+            <button
+              className="practice"
+              onClick={() => {
+                if (!name.trim()) return setNotice("닉네임을 입력하세요.");
+                localStorage.yutName = name;
+                socket.emit(
+                  "create",
+                  { name, mode: "solo", practice: true },
+                  (x: { ok: boolean; error?: string }) => {
+                    if (!x.ok)
+                      return setNotice(
+                        x.error ?? "연습 방을 만들지 못했습니다.",
+                      );
+                    socket.emit(
+                      "start",
+                      {},
+                      (started: { ok: boolean; error?: string }) =>
+                        !started?.ok &&
+                        setNotice(
+                          started?.error ?? "게임을 시작하지 못했습니다.",
+                        ),
+                    );
+                  },
+                );
+              }}
+            >
+              혼자 연습
+            </button>
+          </div>
+        </section>
+        <section className="join-card">
+          <b>친구 방 입장</b>
+          <small>초대 코드 또는 초대 링크를 붙여넣으세요.</small>
+          <input
+            placeholder="예: ABC12 또는 초대 링크"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <div className="entry-team">
+            <button
+              className={`team-entry t0 ${joinTeam === 0 ? "selected" : ""}`}
+              onClick={() => setJoinTeam(0)}
+            >
+              주황팀 희망
+            </button>
+            <button
+              className={`team-entry t1 ${joinTeam === 1 ? "selected" : ""}`}
+              onClick={() => setJoinTeam(1)}
+            >
+              파랑팀 희망
+            </button>
+          </div>
+          <button
+            className="join-main"
+            onClick={() => {
+              if (!name.trim()) return setNotice("닉네임을 입력하세요.");
+              const roomCode = codeFromInput(code);
+              if (!roomCode)
+                return setNotice("초대 코드 또는 링크를 입력하세요.");
+              localStorage.yutName = name;
+              action("join", { code: roomCode, name, team: joinTeam });
+            }}
+          >
+            방 입장하기
+          </button>
+          <button
+            className="spectate-main"
+            onClick={() => {
+              if (!name.trim()) return setNotice("닉네임을 입력하세요.");
+              const roomCode = codeFromInput(code);
+              if (!roomCode)
+                return setNotice("초대 코드 또는 링크를 입력하세요.");
+              localStorage.yutName = name;
+              action("join", { code: roomCode, name, spectate: true });
+            }}
+          >
+            관전하기
+          </button>
+          <small>진행 중인 방은 관전으로 들어갈 수 있어요.</small>
+        </section>
+        <small className="landing-notice">{notice}</small>
+      </main>
+    );
+  const turn = room.players[room.turn],
+    isSpectator =
+      room.spectators?.some((observer) => observer.id === me) ?? false,
+    myPlayer = room.players.find((player) => player.id === me),
+    winnerText =
+      room.mode === "team"
+        ? `${
+            room.winnerName ??
+            room.players
+              .filter((p) => p.team === room.winner)
+              .map((p) => p.name)
+              .join(" · ")
+          } 팀`
+        : (room.winnerName ?? room.players[room.winner ?? 0]?.name);
+  const pendingIndex = Math.min(
+      selectedPending,
+      Math.max(0, room.pending.length - 1),
+    ),
+    selectedResult = room.pending[pendingIndex];
+  const secondsLeft = localActionDeadline
+    ? Math.max(1, Math.ceil((localActionDeadline - clock) / 1000))
+    : 15;
+  const guide =
+    room.status === "finished"
+      ? "게임이 끝났습니다. 다음 게임 참가자를 정해 주세요."
+      : rolling
+        ? "윷이 멈출 때까지 잠시 기다려 주세요."
+        : room.stackOffer?.playerId === me
+          ? `같은 팀 말과 만났습니다. ${secondsLeft}초 안에 업을지 선택해 주세요.`
+          : room.extraThrows > 0 && turn?.id === me
+            ? `추가 던지기 ${room.extraThrows}회가 남았습니다. ${secondsLeft}초 안에 던져 주세요.`
+            : room.pending.length > 0 && turn?.id === me
+              ? `이번 턴 누적 결과(${room.pending.map((value) => labels[value]).join(" · ")}) 중 ${labels[selectedResult]}을 선택했습니다. ${secondsLeft}초 안에 빛나는 도착 칸을 눌러 이동하세요.`
+              : turn?.id === me
+                ? `내 차례입니다. ${secondsLeft}초 안에 윷 던지기를 눌러 주세요.`
+                : `${turn?.name ?? "상대"} 님이 움직이는 중입니다.`;
+  const chatPanel = (
+    <ChatPanel
+      chats={chats}
+      text={text}
+      setText={setText}
+      me={me}
+      open={chatOpen}
+      onToggle={() => setChatOpen((v) => !v)}
+    />
+  );
+  const mobileInfoTools = (
+    <MobileInfoTools
+      active={mobileInfo}
+      setActive={setMobileInfo}
+      events={room.events}
+      chats={chats}
+      text={text}
+      setText={setText}
+      me={me}
+    />
+  );
+  const gameBoard = (
+    <Board
+      room={room}
+      me={me}
+      pendingIndex={pendingIndex}
+      rolling={rolling}
+      fx={moveFx}
+      onMove={(pieceId, takeShortcut, resultIndex) =>
+        action("move", { pieceId, takeShortcut, resultIndex })
+      }
+    />
+  );
+  const stackHost =
+      room.stackOffer &&
+      room.pieces.find((piece) => piece.id === room.stackOffer?.hostPieceId),
+    stackHostName =
+      stackHost &&
+      room.players.find((player) => player.id === stackHost.owner)?.name;
+  const stackPrompt =
+    room.stackOffer?.playerId === me ? (
+      <section className="stack-prompt">
+        <b>{stackHostName} 님의 말과 만났어요.</b>
+        <span>이 말에 업어서 함께 갈까요?</span>
+        <div>
+          <button onClick={() => action("stackDecision", { accept: true })}>
+            예, 업기
+          </button>
+          <button
+            className="decline"
+            onClick={() => action("stackDecision", { accept: false })}
+          >
+            아니오
+          </button>
+        </div>
+      </section>
+    ) : null;
+  const inviteLink = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room.code)}`;
+  const shareInvite = async () => {
+    try {
+      if (navigator.share)
+        await navigator.share({
+          title: "윷놀이터 초대",
+          text: `${room.code} 방에서 함께 윷놀이해요!`,
+          url: inviteLink,
+        });
+      else {
+        await navigator.clipboard.writeText(inviteLink);
+        setNotice("초대 링크를 복사했습니다.");
+      }
+    } catch {}
+  };
+  const lobbyOverlay = (
+    <section className="lobby-overlay">
+      <span>대기실</span>
+      <strong>
+        참가 인원 {room.players.length}/8명 · 관전자{" "}
+        {room.spectators?.length ?? 0}명
+      </strong>
+      <p>
+        {room.practice
+          ? "혼자 연습을 시작하시겠습니까?"
+          : "친구가 들어오면 시작할 수 있습니다."}
+      </p>
+      <div className="invite-tools">
+        <code>방 코드 {room.code}</code>
+        <button onClick={shareInvite}>초대 링크 복사 · 공유</button>
+      </div>
+      {!room.practice && (
+        <div className="role-switch">
+          <b>{isSpectator ? "현재 관전 중입니다" : "현재 플레이어입니다"}</b>
+          <button
+            onClick={() =>
+              action("changeRole", {
+                role: isSpectator ? "player" : "spectator",
+                team: joinTeam,
+              })
+            }
+          >
+            {isSpectator ? "플레이어로 참여" : "관전으로 전환"}
+          </button>
+          <small>게임 시작 전까지만 바꿀 수 있어요.</small>
+        </div>
+      )}
+      {room.mode === "team" && !isSpectator && (
+        <div className="team-picker">
+          <b>내 팀을 미리 선택하세요</b>
+          <div className="team-options">
+            {([0, 1] as const).map((team) => (
+              <button
+                key={team}
+                className={`team-option t${team} ${room.players.find((p) => p.id === me)?.team === team ? "chosen" : ""}`}
+                onClick={() => action("selectTeam", { team })}
+              >
+                <strong>
+                  {team === 0 ? "주황팀" : "파랑팀"}{" "}
+                  <small>
+                    {room.players.filter((p) => p.team === team).length}/4
+                  </small>
+                </strong>
+                <span>
+                  {room.players
+                    .filter((p) => p.team === team)
+                    .map((p) => p.name)
+                    .join(" · ") || "아직 없음"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {room.hostId === me ? (
+        <>
+          <div className="lobby-buttons">
+            {room.mode === "team" && room.players.length > 1 && (
+              <button
+                className="team-shuffle"
+                onClick={() => action("shuffleTeams")}
+              >
+                팀 자동 섞기
+              </button>
+            )}
+            <button onClick={() => action("start")}>
+              {room.practice ? "연습 시작" : "게임 시작"}
+            </button>
+          </div>
+          <small>
+            {room.mode === "team"
+              ? "팀당 최대 4명 · 두 팀 모두 참가해야 시작할 수 있어요."
+              : "방장이 게임을 시작합니다."}
+          </small>
+        </>
+      ) : (
+        <small>
+          {isSpectator
+            ? "관전 중 · 게임 시작을 기다리는 중…"
+            : "방장이 시작하기를 기다리는 중…"}
+        </small>
+      )}
+    </section>
+  );
+  const winnerBanner =
+    room.status === "finished" ? (
+      <FinishLobby
+        room={room}
+        me={me}
+        isSpectator={isSpectator}
+        joinTeam={joinTeam}
+        winnerText={winnerText}
+        action={action}
+        onNewRoom={() => {
+          localStorage.removeItem("yutSession");
+          setChats([]);
+          setRoom(undefined);
+          setNotice("새 방을 만들어 다시 시작하세요.");
+        }}
+      />
+    ) : null;
+  const leaveRoom = () => {
+    if (
+      !window.confirm(
+        "방에서 나갈까요? 진행 중인 게임에서는 재접속 전까지 내 턴이 자동으로 넘어갈 수 있습니다.",
+      )
+    )
+      return;
+    socket.emit("leaveRoom", {}, () => {
+      localStorage.removeItem("yutSession");
+      setChats([]);
+      setRoom(undefined);
+      setNotice("방에서 나왔습니다. 새 방을 만들거나 방 코드로 입장하세요.");
+    });
+  };
+  const rulesModal = rulesOpen ? (
+    <div className="rules-backdrop" onClick={() => setRulesOpen(false)}>
+      <section
+        className="rules-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="윷놀이 규칙"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header>
+          <h2>윷놀이 규칙</h2>
+          <button onClick={() => setRulesOpen(false)}>닫기</button>
+        </header>
+        <ol>
+          <li>
+            도·개·걸·윷·모는 각각 1~5칸 이동합니다. 낙은 그 차례를 넘깁니다.
+          </li>
+          <li>
+            윷·모가 나오면 추가 던지기 1회를 얻습니다. 잡기도 추가 던지기
+            1회이며, 둘 다 발생하면 총 2회를 얻습니다.
+          </li>
+          <li>
+            추가 던지기는 모두 던진 뒤, 쌓인 결과 중 원하는 순서로 골라
+            이동합니다.
+          </li>
+          <li>
+            내 말이 판 위에 하나도 없을 때 빽도가 나오면 무효로 차례가
+            넘어갑니다. 빽도는 예외 없이 정확히 한 칸 뒤로 이동합니다.
+          </li>
+          <li>
+            출발·완주 칸에 정확히 도착하면 그 칸에 머물고, 다음 이동에
+            완주합니다. 그 칸에 닿은 뒤 이동력이 남아 있으면 같은 이동으로
+            완주합니다.
+          </li>
+          <li>
+            같은 팀 말은 업을지 선택할 수 있고, 상대 말이 있는 칸에 도착하면
+            잡아 출발로 돌려보냅니다.
+          </li>
+          <li>
+            지름길이 빛나면 도착 칸을 눌러 선택합니다. 팀전은 팀의 말 4개씩을
+            먼저 완주하면 승리합니다.
+          </li>
+        </ol>
+      </section>
+    </div>
+  ) : null;
+  return (
+    <main className="game">
+      <header>
+        <h1>온라인 윷놀이</h1>
+        <strong>방 코드: {room.code}</strong>
+        <span>
+          {room.practice
+            ? "혼자 연습"
+            : room.mode === "team"
+              ? "팀전"
+              : "개인전"}
+          {isSpectator ? " · 관전 중" : ""}
+        </span>
+        <button className="rules-button" onClick={() => setRulesOpen(true)}>
+          규칙
+        </button>
+        <button className="leave-room" onClick={leaveRoom}>
+          ← 나가기
+        </button>
+      </header>
+      <section className="players">
+        {room.players.map((p, i) => {
+          const color = playerColor(room, p.id);
+          return (
+            <div key={p.id} className={i === room.turn ? "active" : ""}>
+              <i className={`dot t${color}`} />
+              {p.name}
+              {p.id === me ? " (나)" : ""}
+              {!p.connected && " · 재접속 대기"}
+            </div>
+          );
+        })}
+      </section>
+      {mobileInfoTools}
+      {room.spectators?.length > 0 && (
+        <p className="spectator-count">
+          관전자 {room.spectators.length}명 ·{" "}
+          {room.spectators.map((observer) => observer.name).join(" · ")}
+        </p>
+      )}
+      {captureFx && (
+        <div className="capture-toast" role="status">
+          💥 잡기! {room.players.find((p) => p.id === captureFx.by)?.name} 님이
+          상대 말 {captureFx.count}개를 출발로 돌려보냈어요.
+        </div>
+      )}
+      {rulesModal}
+      {winnerBanner}
+      {room.status === "lobby" ? (
+        <section className="play lobby-play">
+          <div>
+            <Board
+              room={room}
+              me={me}
+              pendingIndex={0}
+              rolling={false}
+              fx={moveFx}
+              onMove={() => {}}
+              overlay={lobbyOverlay}
+            />
+          </div>
+          {chatPanel}
+        </section>
+      ) : (
+        <section className="play">
+          <div>
+            <p className="turn">
+              {room.status === "finished"
+                ? "게임 종료!"
+                : `${turn?.name} 님의 차례`}
+            </p>
+            <p className="game-guide" aria-live="polite">
+              {guide}
+            </p>
+            <StickRoll data={room.lastRoll} />
+            <PieceStatus room={room} turnId={turn?.id} />
+            <button
+              className="roll"
+              disabled={
+                rolling ||
+                turn?.id !== me ||
+                room.status !== "playing" ||
+                (room.pending.length > 0 && room.extraThrows === 0)
+              }
+              onClick={() => action("roll")}
+            >
+              윷 던지기
+            </button>
+            {rolling && <p className="rolling-note">윷이 멈추는 중…</p>}
+            {room.pending.length > 0 && !rolling && !room.stackOffer && (
+              <section
+                className={`pending-results ${turn?.id === me ? "mine" : "spectator"}`}
+              >
+                <b>
+                  {room.extraThrows > 0
+                    ? `${turn?.name} 님 추가 던지기 ${room.extraThrows}회 남음`
+                    : turn?.id === me
+                      ? "이동할 결과 선택"
+                      : `${turn?.name} 님의 보유 이동력`}
+                </b>
+                <div>
+                  {room.pending.map((result, index) => (
+                    <button
+                      key={`${result}-${index}`}
+                      className={index === pendingIndex ? "selected" : ""}
+                      disabled={room.extraThrows > 0 || turn?.id !== me}
+                      onClick={() =>
+                        turn?.id === me && setSelectedPending(index)
+                      }
+                    >
+                      {labels[result]}
+                    </button>
+                  ))}
+                </div>
+                <small>
+                  {room.extraThrows > 0
+                    ? `${turn?.name} 님이 추가 던지기 중입니다.`
+                    : turn?.id === me
+                      ? "선택한 결과의 빛나는 도착 칸을 누르세요."
+                      : "상대가 결과를 골라 이동 중입니다."}
+                </small>
+              </section>
+            )}
+            {stackPrompt}
+            {gameBoard}
+          </div>
+          <div className="right-rail">
+            <DesktopInfoPanel
+              events={room.events}
+              chats={chats}
+              text={text}
+              setText={setText}
+              me={me}
+            />
+          </div>
+        </section>
+      )}
+      <small className="notice">{notice}</small>
+    </main>
+  );
+}
+createRoot(document.getElementById("root")!).render(<App />);
