@@ -24,6 +24,15 @@ import "./unified-theme.css";
 import { YutThree } from "./YutThree";
 const socket = io();
 const platformHomeUrl = () => new URLSearchParams(location.search).get("platformUrl") || import.meta.env.VITE_PLATFORM_URL || document.referrer || "/";
+const platformActivityToken = new URLSearchParams(location.search).get("platformActivityToken");
+let lastPlatformActivity = "";
+function reportPlatformActivity(status: "LOBBY" | "PLAYING" | "SPECTATING") {
+  if (!platformActivityToken || lastPlatformActivity === status) return;
+  lastPlatformActivity = status;
+  let endpoint: string;
+  try { endpoint = new URL("/api/activity", platformHomeUrl()).toString(); } catch { return; }
+  fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: platformActivityToken, status }), keepalive: true }).catch(() => { lastPlatformActivity = ""; });
+}
 const labels: Record<Result, string> = {
   DO: "도",
   GAE: "개",
@@ -1037,6 +1046,10 @@ function App() {
   const [joinTeam, setJoinTeam] = useState<0 | 1>(0);
   const [room, setRoom] = useState<Room>();
   const [me, setMe] = useState("");
+  const platformIsSpectator = room?.spectators?.some((observer) => observer.id === me) ?? false;
+  useEffect(() => {
+    reportPlatformActivity(!room || room.status === "lobby" ? "LOBBY" : platformIsSpectator ? "SPECTATING" : "PLAYING");
+  }, [room?.status, platformIsSpectator]);
   const [notice, setNotice] = useState("");
   const [chats, setChats] = useState<Chat[]>([]);
   const [text, setText] = useState("");
