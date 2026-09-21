@@ -26,8 +26,8 @@ const socket = io();
 const platformHomeUrl = () => new URLSearchParams(location.search).get("platformUrl") || import.meta.env.VITE_PLATFORM_URL || document.referrer || "/";
 const platformActivityToken = new URLSearchParams(location.search).get("platformActivityToken");
 let lastPlatformActivity = "";
-function reportPlatformActivity(status: "LOBBY" | "PLAYING" | "SPECTATING") {
-  if (!platformActivityToken || lastPlatformActivity === status) return;
+function reportPlatformActivity(status: "LOBBY" | "PLAYING" | "SPECTATING", force = false) {
+  if (!platformActivityToken || (!force && lastPlatformActivity === status)) return;
   lastPlatformActivity = status;
   let endpoint: string;
   try { endpoint = new URL("/api/activity", platformHomeUrl()).toString(); } catch { return; }
@@ -1048,7 +1048,10 @@ function App() {
   const [me, setMe] = useState("");
   const platformIsSpectator = room?.spectators?.some((observer) => observer.id === me) ?? false;
   useEffect(() => {
-    reportPlatformActivity(!room || room.status === "lobby" ? "LOBBY" : platformIsSpectator ? "SPECTATING" : "PLAYING");
+    const status = !room || room.status === "lobby" ? "LOBBY" : platformIsSpectator ? "SPECTATING" : "PLAYING";
+    reportPlatformActivity(status);
+    const timer = window.setInterval(() => reportPlatformActivity(status, true), 45_000);
+    return () => window.clearInterval(timer);
   }, [room?.status, platformIsSpectator]);
   const [notice, setNotice] = useState("");
   const [chats, setChats] = useState<Chat[]>([]);
