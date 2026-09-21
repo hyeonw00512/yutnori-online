@@ -1665,9 +1665,6 @@ function App() {
         <button className="rules-button" onClick={() => setRulesOpen(true)}>
           규칙
         </button>
-        <button className="rules-button" onClick={() => window.location.assign(platformHomeUrl())}>
-          플랫폼
-        </button>
         <button className="leave-room" onClick={leaveRoom}>
           ← 나가기
         </button>
