@@ -1091,26 +1091,27 @@ function App() {
     const receiveMove = (fx: MoveFx) => setMoveFx(fx);
     const restore = () => {
       const saved = localStorage.yutSession;
+      if (platformJoinToken && !platformJoinAttempted.current) {
+        platformJoinAttempted.current = true;
+        localStorage.removeItem("yutSession");
+        socket.emit(
+          "platformJoin",
+          { joinToken: platformJoinToken },
+          (result: { ok: boolean; code?: string; error?: string }) => {
+            if (!result?.ok) {
+              setNotice(result?.error ?? "플랫폼 자동 입장에 실패했습니다.");
+              return;
+            }
+            localStorage.yutSession = JSON.stringify({ code: result.code, playerId: socket.id });
+            const url = new URL(window.location.href);
+            url.searchParams.delete("joinToken");
+            window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+            setConnection("connected");
+          },
+        );
+        return;
+      }
       if (!saved) {
-        if (platformJoinToken && !platformJoinAttempted.current) {
-          platformJoinAttempted.current = true;
-          socket.emit(
-            "platformJoin",
-            { joinToken: platformJoinToken },
-            (result: { ok: boolean; code?: string; error?: string }) => {
-              if (!result?.ok) {
-                setNotice(result?.error ?? "플랫폼 자동 입장에 실패했습니다.");
-                return;
-              }
-              localStorage.yutSession = JSON.stringify({ code: result.code, playerId: socket.id });
-              const url = new URL(window.location.href);
-              url.searchParams.delete("joinToken");
-              window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-              setConnection("connected");
-            },
-          );
-          return;
-        }
         setConnection("connected");
         return;
       }
