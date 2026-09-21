@@ -1023,7 +1023,8 @@ function Board({
   );
 }
 function App() {
-  const [name, setName] = useState(localStorage.yutName || "");
+  const platformNickname = useMemo(() => new URLSearchParams(window.location.search).get("platformNickname")?.trim() || "", []);
+  const [name, setName] = useState(platformNickname || localStorage.yutName || "");
   const [code, setCode] = useState(
     () => new URLSearchParams(window.location.search).get("room") ?? "",
   );
@@ -1253,12 +1254,12 @@ function App() {
       <main className="landing">
         <h1>윷놀이터</h1>
         <p>집에서도 함께 하는 실시간 윷놀이</p>
-        <input
+        {!platformNickname && <input
           className="nickname-input"
           placeholder="닉네임을 입력하세요"
           value={name}
           onChange={(e) => setName(e.target.value)}
-        />
+        />}
         <section className="create-card">
           <b>게임 방식 선택</b>
           <div className="mode-picker">
