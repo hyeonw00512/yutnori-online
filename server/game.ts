@@ -3,7 +3,7 @@ export type Piece = { id: string; owner: string; pos: number; finished: boolean;
 export type StackOffer = { playerId: string; pieceId: string; hostPieceId: string; takeShortcut: boolean; resultIndex: number };
 export type Player = { id: string; name: string; team: number; connected: boolean; finished: number; auto?: boolean; disconnectedAt?: number };
 // 관전자는 게임 상태를 받지만 말·팀·투표에는 참여하지 않는다.
-export type Spectator = { id: string; name: string; connected: boolean };
+export type Spectator = { id: string; name: string; connected: boolean; reservedNextRound?: boolean };
 export type GameEvent = { id: number; kind: "roll" | "move" | "capture" | "finish" | "system"; text: string; team?: number; at: number };
 export type Room = {
   code: string; hostId: string; status: "lobby" | "playing" | "finished"; mode: "solo" | "team"; practice?: boolean;
@@ -29,7 +29,7 @@ export const roll = (): { result: Result; sticks: boolean[] } => {
 };
 export const current = (room: Room) => room.players[room.turn];
 export function createPieces(room: Room) { room.pieces = room.players.flatMap(p => Array.from({ length: 4 }, (_, n) => ({ id: `${p.id}-${n}`, owner: p.id, pos: -1, finished: false, stackedWith: [] }))); }
-export function restartRound(room: Room) { room.status = "playing"; room.turn = 0; room.pending = []; room.extraThrows=0; room.resolving=false; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.winnerName = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
+export function restartRound(room: Room) { const reservations=room.spectators.filter(observer=>observer.reservedNextRound&&observer.connected).slice(0,Math.max(0,8-room.players.length)); for(const observer of reservations){const counts=[0,1].map(team=>room.players.filter(player=>player.team===team).length),team=counts[0]<=counts[1]?0:1;room.spectators=room.spectators.filter(item=>item.id!==observer.id);room.players.push({id:observer.id,name:observer.name,team,connected:true,finished:0});} room.status = "playing"; room.turn = 0; room.pending = []; room.extraThrows=0; room.resolving=false; room.lastRoll = undefined; room.lastCapture = undefined; room.stackOffer = undefined; room.extra = false; room.winner = undefined; room.winnerName = undefined; room.rematchVotes = []; room.players.forEach(p => p.finished = 0); createPieces(room); }
 // -1은 출발 대기, 0은 출발·완주 공용 칸, 1~19는 외곽이다.
 const forward = (pos: number, route?: "a" | "b") => {
   if (pos === -1) return 1;

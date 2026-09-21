@@ -1097,7 +1097,7 @@ function App() {
         socket.emit(
           "platformJoin",
           { joinToken: platformJoinToken },
-          (result: { ok: boolean; code?: string; error?: string }) => {
+          (result: { ok: boolean; code?: string; error?: string; reservedNextRound?: boolean }) => {
             if (!result?.ok) {
               setNotice(result?.error ?? "플랫폼 자동 입장에 실패했습니다.");
               return;
@@ -1106,6 +1106,8 @@ function App() {
             const url = new URL(window.location.href);
             url.searchParams.delete("joinToken");
             window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+            if (result.reservedNextRound) setNotice("다음 게임 참가를 예약했습니다. 관전하며 기다려 주세요.");
+            if (url.searchParams.get("reserveNextRound") === "1") socket.emit("reserveNextRound", {}, (reserved: { ok: boolean; error?: string }) => setNotice(reserved.ok ? "다음 게임 참가를 예약했습니다. 관전하며 기다려 주세요." : (reserved.error ?? "다음 게임 예약에 실패했습니다.")));
             setConnection("connected");
           },
         );
