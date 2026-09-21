@@ -180,3 +180,4 @@ body{background:radial-gradient(circle at 50% 0,#fff9e9 0,#ead4a7 66%,#bd8250 15
   .desktop-info-panel>nav .chat-power{padding:7px 8px!important;margin:5px!important;border:1px solid #a96b3b!important;border-radius:7px!important;background:#fff3d0!important;color:#7c4328!important;font-size:10px!important;box-shadow:none!important}
   .desktop-info-panel>nav .chat-power:hover{background:#f5d891!important}
 }
+body{min-height:100dvh;background:linear-gradient(rgba(5,18,35,.46),rgba(5,18,35,.64)),url('./assets/hanok-moonlight-background.png') center/cover fixed!important;color:#fff8e9}.game,.landing{position:relative;z-index:1}.landing,.play>aside,.players div{background:rgba(255,250,236,.93)!important;color:#263238;backdrop-filter:blur(8px)}.game:before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(3,13,29,.08),rgba(3,13,29,.44));pointer-events:none}
