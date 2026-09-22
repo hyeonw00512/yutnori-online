@@ -1270,6 +1270,7 @@ function App() {
       <main className="landing">
         <h1>윷놀이터</h1>
         <p>집에서도 함께 하는 실시간 윷놀이</p>
+        {new URLSearchParams(window.location.search).get("platformUrl") && <button className="practice" onClick={() => window.location.assign(platformHomeUrl())}>플랫폼으로 돌아가기</button>}
         {!platformNickname && <input
           className="nickname-input"
           placeholder="닉네임을 입력하세요"
