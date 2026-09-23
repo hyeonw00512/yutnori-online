@@ -1164,6 +1164,16 @@ function App() {
     };
   }, []);
   useEffect(() => {
+    const resumeConnection = () => {
+      if (document.visibilityState === "visible" && !socket.connected) {
+        setConnection("reconnecting");
+        socket.connect();
+      }
+    };
+    document.addEventListener("visibilitychange", resumeConnection);
+    return () => document.removeEventListener("visibilitychange", resumeConnection);
+  }, []);
+  useEffect(() => {
     const invite = new URLSearchParams(window.location.search).get("room");
     if (!invite) return;
     const validate = () =>
