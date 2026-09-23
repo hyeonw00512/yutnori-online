@@ -26,13 +26,14 @@ const socket = io();
 const platformHomeUrl = () => new URLSearchParams(location.search).get("platformUrl") || import.meta.env.VITE_PLATFORM_URL || document.referrer || "/";
 const platformActivityToken = new URLSearchParams(location.search).get("platformActivityToken");
 let lastPlatformActivity = "";
-function reportPlatformActivity(status: "LOBBY" | "PLAYING" | "SPECTATING", force = false) {
+function reportPlatformActivity(status: "LOBBY" | "PLAYING" | "SPECTATING" | "OFFLINE", force = false) {
   if (!platformActivityToken || (!force && lastPlatformActivity === status)) return;
   lastPlatformActivity = status;
   let endpoint: string;
   try { endpoint = new URL("/api/activity", platformHomeUrl()).toString(); } catch { return; }
   fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: platformActivityToken, status }), keepalive: true }).catch(() => { lastPlatformActivity = ""; });
 }
+window.addEventListener("pagehide", () => reportPlatformActivity("OFFLINE", true));
 const labels: Record<Result, string> = {
   DO: "도",
   GAE: "개",
