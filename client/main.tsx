@@ -570,10 +570,14 @@ function DesktopInfoPanel({
   me: string;
 }) {
   const [tab, setTab] = useState<"chat" | "activity">("chat"),
-    [chatOn, setChatOn] = useState(true);
+    [chatOn, setChatOn] = useState(false);
   const showChat = () => {
     setChatOn(true);
     setTab("chat");
+  };
+  const showActivity = () => {
+    setChatOn(true);
+    setTab("activity");
   };
   const toggleChat = () => {
     setChatOn((on) => {
@@ -593,7 +597,7 @@ function DesktopInfoPanel({
         </button>
         <button
           className={tab === "activity" ? "active" : ""}
-          onClick={() => setTab("activity")}
+          onClick={showActivity}
         >
           기록
         </button>
@@ -1209,13 +1213,14 @@ function App() {
     rollSound();
     setRolling(true);
     const result = room.lastRoll?.result;
+    const animationDuration = result === "NAK" ? 1350 : 3200;
     const resultTimer = window.setTimeout(() => {
       if (result) {
         landingSound();
         playResultSound(result);
       }
-    }, 2550);
-    const finishTimer = window.setTimeout(() => setRolling(false), 3200);
+    }, result === "NAK" ? 950 : 2550);
+    const finishTimer = window.setTimeout(() => setRolling(false), animationDuration);
     return () => {
       window.clearTimeout(resultTimer);
       window.clearTimeout(finishTimer);
