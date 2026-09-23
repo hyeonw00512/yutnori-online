@@ -2,7 +2,16 @@ import express from "express"; import path from "node:path"; import { createHmac
 const app=express(), http=createServer(app), io=new Server(http,{cors:{origin:true}}); app.get("/health",(_,r)=>r.json({ok:true}));
 app.get("/api/platform/rooms",(_,response)=>response.json({version:1,gameId:"moon-yut",updatedAt:new Date().toISOString(),capabilities:{canSpectate:true,canReserveNextRound:true},rooms:[...rooms.values()].filter(room=>!room.practice).map(room=>({roomCode:room.code,hostNickname:room.players.find(player=>player.id===room.hostId)?.name||"알 수 없음",playerCount:room.players.length,maxPlayers:8,spectatorCount:room.spectators.length,status:room.status==="lobby"?"WAITING":room.status==="playing"?"PLAYING":"FINISHED",visibility:"PUBLIC",requiresPassword:false,canJoin:room.status==="lobby"&&room.players.length<8,canSpectate:true,canReserveNextRound:room.status==="playing"&&room.players.length<8,joinUrl:`https://yutnori-online-71vm.onrender.com/?room=${room.code}`}))}));
 // Render에서는 이 서버가 Vite가 만든 화면과 WebSocket을 같은 주소에서 제공한다.
-app.use(express.static(path.resolve("dist"))); app.get(/.*/,(_,r)=>r.sendFile(path.resolve("dist/index.html")));
+// Vite가 파일명에 콘텐츠 해시를 넣으므로, 이미지·JS·CSS 자산은 안전하게 오래
+// 캐시할 수 있다. 모바일에서 한 번 내려받은 윷판/배경을 다음 접속 때 다시 받지
+// 않도록 하고, HTML은 새 배포를 즉시 확인하도록 별도로 둔다.
+app.use(express.static(path.resolve("dist"), { setHeaders(response, filePath) {
+  if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+    response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  } else if (path.basename(filePath) === "index.html") {
+    response.setHeader("Cache-Control", "no-cache");
+  }
+} })); app.get(/.*/,(_,r)=>r.sendFile(path.resolve("dist/index.html"), { headers: { "Cache-Control": "no-cache" } }));
 const rooms=new Map<string,Room>(); const sessions=new Map<string,{room:string;player:string;role:"player"|"spectator"}>();
 const verifyPlatformJoinToken=(token:unknown)=>{const secret=process.env.PLATFORM_JOIN_SECRET;if(!secret)throw new Error("플랫폼 자동 입장이 아직 설정되지 않았습니다.");const [body,signature]=String(token??"").split(".");if(!body||!signature)throw new Error("자동 입장 정보가 올바르지 않습니다.");const expected=createHmac("sha256",secret).update(body).digest("base64url"),received=Buffer.from(signature),valid=Buffer.from(expected);if(received.length!==valid.length||!timingSafeEqual(received,valid))throw new Error("자동 입장 정보가 만료되었거나 올바르지 않습니다.");let payload:any;try{payload=JSON.parse(Buffer.from(body,"base64url").toString("utf8"));}catch{throw new Error("자동 입장 정보를 읽을 수 없습니다.");}if(payload.gameId!=="moon-yut"||!payload.roomCode||!payload.nickname||Number(payload.exp)*1000<=Date.now())throw new Error("자동 입장 정보가 만료되었거나 다른 게임용입니다.");return payload;};
 const code=()=>Math.random().toString(36).slice(2,7).toUpperCase(); const publish=(r:Room)=>io.to(r.code).emit("room",r);
