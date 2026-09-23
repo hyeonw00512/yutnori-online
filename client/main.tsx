@@ -1,4 +1,6 @@
 import React, {
+  lazy,
+  Suspense,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -21,7 +23,11 @@ import "./video-inspired-layout.css";
 import "./clean-theme.css";
 import "./classic-board-theme.css";
 import "./unified-theme.css";
-import { YutThree } from "./YutThree";
+// Three.js는 게임 진입 뒤에만 필요한 연출이다. 첫 화면과 로비는 가볍게 열고,
+// 윷 던지기 영역이 표시될 때 별도 청크로 불러온다.
+const YutThree = lazy(() =>
+  import("./YutThree").then((module) => ({ default: module.YutThree })),
+);
 const socket = io();
 const platformHomeUrl = () => new URLSearchParams(location.search).get("platformUrl") || import.meta.env.VITE_PLATFORM_URL || document.referrer || "/";
 const platformActivityToken = new URLSearchParams(location.search).get("platformActivityToken");
@@ -302,7 +308,13 @@ function StickRoll({
             뒷면
           </b>
         </div>
-        <YutThree data={data} />
+        <Suspense
+          fallback={
+            <div className="yut-three yut-three-loading" aria-label="윷판 준비 중" />
+          }
+        >
+          <YutThree data={data} />
+        </Suspense>
       </div>
       {data && (
         <b key={data.rollId} className="result-pop">
